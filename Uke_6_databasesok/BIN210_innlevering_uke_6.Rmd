@@ -1,0 +1,456 @@
+---
+title: "Innlevering uke 6, databasesøk"
+author: "Ane Kleiven"
+date: "2025-03-10"
+output: 
+  html_document:  
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Last inn R-pakker  
+
+```{r}
+library(microseq) 
+library(stringr)
+library(ggplot2)
+library(pwalign)
+library(tidyverse) 
+```
+
+# 2 Litt repetisjon 
+
+En flittig BIN210 student bruker 5 minutter på å fylle ut en Needleman-Wunsch dynamisk programmeringstabell for sammenstilling av to sekvenser som begge er 10 nukleotider lange. 
+Den samme studenten skal så prøve å gjøre det samme for to sekvenser som begge er 50 nukleotider. 
+
+**Hvor lang tid vil vi forvente at det tar?** 
+
+```{r, eval=FALSE}
+Tidsbruk = O (n x m) der n og m er lengden på de to sekvensene 
+
+f(n,m) ~ O (n x m) ~ C x n x m 
+
+f(10,10) = C * 10 * 10 = 5 
+
+C = 5 / 100 = 0.05
+
+f(50,50) = O (50 x 50) = C * 50 * 50 = 0.05 * 50 * 50 = 125 minutter
+```
+
+Den flittige studenten bruker så ett minutt på å beregne score for en 100 posisjoner lang sammenstilling (ferdig sammenstilt altså, bare summerer score for hver posisjon).
+
+**Hvor lang tid ville det ta hvis sammenstillingene er 200 nukleotider lang?**
+
+```{r, eval=FALSE}
+Tidsbruk = O (n) der n er lengden på sekvensen 
+
+f(n) ~ O (n) ~ C x n 
+
+f(100) = O (100) = C x 100 = 1 
+C = 1 / 100 = 0.01 
+
+f(200) = O (200) = C x 200 = 0.01 x 200 = 2 minutter 
+
+```
+
+**Hvordan beskriver vi arbeidsmengden (kjøretiden) med store-O notasjon i de to tilfellene?** 
+
+I det siste tilfellet øker tiden lineært med lengden på sekvensen, mens i det første tilfellet øker tiden kvadratisk med lengden på sekvensen. 
+
+Første tilfelle: O(n^2) 
+Andre tilfelle: O(n) 
+
+# 3 Hente beslektede sekvenser med BLAST 
+ 
+Følger instruksjonsvideoen i oppgavebeskrivelsen for å kjøre et blastsøk på NCBI. Lagrer filen som en FASTA-fil. 
+
+## 3.2 Filtrer på lengde 
+
+**Hvordan kan et BLAST-søk gi treff på veldig lange sekvenser selv om vår søkesekvens er kort?** 
+Dersom det er en del av sekvensen som er identisk med vår søkesekvens, vil hele sekvensen bli returnert. 
+BLAST er et verktøy for lokale sammenstillinger og bruker heuristikker for å finne sammenhenger mellom sekvenser. 
+Heuristikk er en hurtig tilnærming som finner sammenstillinger som er gode nokl uten å gjøre en fullstendig sammenstilling. Dette er ikke alltid de beste sammenstillingene, men sammenstillinger som oppnår en viss score/kvalitetskrav. 
+
+BLAST finner først korte ord som matcher, og utvider så disse til å finne lengre sammenstillinger - helt til scoren ikke lenger er god nok.
+
+**Lag kode som leser inn FASTA-filen. Legg inn en ny kolonne 'length' som inneholder lengden på hver sekvens.** 
+
+```{r}
+vipera.fasta <- readFasta('data/viperaseq.FASTA.txt') |> 
+  mutate(str_length = nchar(Sequence)) |> 
+  filter(str_length < str_length[1]*2) # filtrer ut alle sekvenser som er lengre enn 2x lengden på den første sekvensen 
+```
+
+## 3.3 Første sekvens for hver art 
+
+**Utvid koden ved å lage kolonnen `Species` som skal inneholde artsnavnet for hver sekvens** 
+
+```{r}
+vipera.fasta <- readFasta('data/viperaseq.FASTA.txt') |> 
+  mutate(str_length = nchar(Sequence)) |> 
+  filter(str_length < str_length[1]*2) |> # filtrer ut alle sekvenser som er lengre enn 2x lengden på første sekvens
+  mutate(Species = word(Header, 2, 3)) |>
+  distinct(Species, .keep_all = TRUE)
+  
+```
+
+**Hvor mange arter fikk du treff på?** 
+
+```{r}
+str(vipera.fasta$Species)
+```
+Jeg fikk treff på 29 ulike arter. 
+
+**Antall sekvenser for hver slekt** 
+
+```{r}
+vipera_counts <- vipera.fasta |> 
+  mutate(Slekt = word(Species, 1)) |>  
+  count(Slekt) 
+
+ggplot(vipera_counts, aes(x = Slekt, y = n, fill = Slekt)) + 
+  geom_bar(stat = 'identity') + 
+  labs(x = 'Slekt', y = 'Antall sekvenser', title = 'Antall sekvenser for hver slekt') + 
+  theme_minimal()
+```
+
+**Lagre tabellen** 
+
+```{r}
+save(vipera.fasta, file = 'data/vipera.RData')
+```
+
+# Mer NCBI BLAST 
+
+## 4.1 Nucleotide blast (megablast)
+
+Ordlengde = 28 
+
+**Hva er en E-verdi?** 
+
+En E-verdi er en verdi som sier noe om hvor ofte vi kan forvente å finne en sammenstilling med en viss score tilfeldig. 
+En lav E-verdi indikerer homologi mellom to sekvenser, siden sannsynligheten for at dette inntreffer tilfeldig er lav.
+
+**Hvor mange treff ble det i søket?** 
+
+22 sekvenser ble returnert i søket. 
+
+
+## 4.2 Nucleotide blast (blastn) 
+
+Ordlengde = 11 
+
+**Hvor mange treff ble det i søket?** 
+
+Det ble 1000 treff i søket - maks antall valgt for dette søket. Sannsynligvis er det flere treff.
+Det er stort sett samme gen. 
+
+**Hvilken metode er mest sensitiv?** 
+
+Blastn er mest sensitiv, siden den gir flere treff. Den har høy evne til å få tak i de homologe sekvensene, men tar også med mye støy. 
+
+Blastn bruker en ordlengde på 11, mens megablast bruker en ordlengde på 28. 
+Den korte ordlengden til blastn er med på å gjøre metoden mer sensitiv. 
+
+**Hvorfor er megablast raskere enn blastn?** 
+
+Megablast er rask fordi den benytter lange ord, og dermed hopper over mange sammenstillinger som ikke er gode nok. 
+Den er mer spesifikk og gir færre treff, men kan også føre til at flere treff blir oversett. 
+Megablast foretrekkes for genomiske søk, der sekvensene er svært like. 
+
+## 4.3 Søk med blastx 
+
+Ordlengde = 5 
+Scoringsmatrise = BLOSUM62 
+
+**Hvor mange treff ble det i søket?**
+
+Det ble 1000 treff i søket - maks antall valgt for dette søket. Sannsynligvis er det flere treff.
+
+*Klikk fram Alignments-fanen. Over hvert alignment står Frame helt til høyre.*
+
+**Hva er en leseramme? Hvilken leseramme finner du flest treff på?** 
+
+Leseramme sier noe om hvordan en nukleotidsekvens skal oversettes til aminosyrer (proteiner). 
+Siden hver aminosyre kodes av tre nukleotider (et kodon), finnes det tre leserammer for hver DNA-sekvens. 
+
+En leseramme på +1 forteller at sekvensen leses fra første nukleotid. 
+En leseramme på +2 forteller at sekvensen leses fra andre nukleotid. 
+En leseramme på +3 forteller at sekvensen leses fra tredje nukleotid.
+
+Sekvensen kan også avleses på den komplementære strengen, og gir leserammer på -1, -2 og -3. 
+
+I dette søket finnes det flest treff på leseramme +1. Dette er det mest biologisk relevante, da avlesningen gjerne starter ved startkodon ATG. I en tilfeldig DNA-sekvens uten kjent annotering kan alle leserammer være like sannsynlige, og må undersøkes. 
+
+*Klikk fram Descriptions-fanen. Sammenlign resultatene med de tilsvarende resultatene du fikk med blastn. Legg merke til forskjell på query coverage, percent identity og E value, spesielt når du går et stykke nedover på lista.*
+
+**Kan du ut fra dette si noe om hvilken av blastn og blastx som er mest sensitiv?**
+
+Percent identity: 
+Blastx er mer sensitiv enn Blastn. Blastx søker etter homologe proteinsekvenser, mens Blastn søker etter homologe nukleotidsekvenser. Ved å oversette nukleotidsekvensen til aminosyrer, kan vi finne homologe sekvenser som ikke er synlige i nukleotidsekvensen, da aminosyrer som ligner hverandre kan si noe om slektskap og dermed gi positiv score ved sammenstilling. 
+
+Blastx vil gi flere treff med lavere prosent identitet, siden det er flere muligheter for at aminosyrer kan være like, mens nukleotider må være helt like for å gi positiv score. 
+
+
+Query coverage: 
+Blastx gir høyere query coverage enn blastn, av samme grunn som over - aminosyrer kan være like uten at nukleotidene er like.  
+
+
+E-value: 
+Blastx gir ofte lavere E-verdier enn blastn, fordi proteindatabaser er mindre enn nukleotiddatabaser - noe som reduserer sannsynligheten for tilfeldige treff. 
+Blastn må lete i flere nukleotiddatabaser, noe som gir høyere E-verdier og flere tilfeldige treff. 
+
+
+Konklusjon: 
+Blastx er mer sensitiv enn blastn. 
+
+
+## 4.4 Artsspesifikke databaser 
+
+**Er det noen åpenbare falske treff? Hva vil det si at et BLAST-treff er en falsk positiv?** 
+
+Mange av sekvensene i søket har svært lav query coverage, noe som kan tyde på at de er falske treff.
+Et falskt positivt treff vil si at to sekvenser sammenstilles, selv om de ikke er homologe. Dette kan skje ved tilfeldige treff, eller ved at sekvensene har en felles sekvens som gir en god score.
+
+Mange av sekvensene har i tillegg ganske høy E-verdi (opp til 0.05), som tilsier at det er 5% sanndsynlighet for at dette treffet er tilfeldig.
+
+**Finner du PLAU-genet blant treffene? Hva er E-verdien til PLAU-genet og hvordan tolker man den?** 
+
+Ja, PLAU-genet er listet blant treffene lengst nede i søket. 
+E-verdien til PLAU-genet er 0.014, noe som indikerer at det er en viss sannsynlighet for at dette treffet er tilfeldig (1.4%). 
+En lav E-verdi indikerer homologi mellom to sekvenser, siden sannsynligheten for at dette inntreffer tilfeldig er lav. 
+
+## 4.5 Søk med tblastx 
+
+**Hvilket gen er det beste treffet? Hva er E-verdien?** 
+PLAU-genet er det beste treffet. E-verdier en 2*10^-85. 
+
+**Kan du dra noen konklusjoner rundt søk med de ulike variantene ut fra dette?** 
+Megablast er rask, men mindre sensitiv enn blastn - da den benytter lange ord og dermed mister en del sammenstillinger. 
+
+tblastx gir færre falske positive treff enn blastn, når man ser på spesifikke arter. Dette kan vi se på E-verdien, som er mye høyere for tblastx enn for blastn. tblastx tar en nukleotidsekvens, og oversetter både nukleotidsekvensen og nukleotiddatabasene til proteinsekvenser. På proteinnivå blir viktige funksjonelle domener bevart, slik at flere ekte homologer blir funnet. 
+
+tblastx er tregere enn blastn. 
+
+Rangering av sensitivitet for de ulike metodene (fra minst til mest): 
+
+1. Megablast - Nukleotid vs nukleotid - rask, god for nært beslektede arter - finner ikke fjerne homologer. 
+
+2. BLASTN - Nukleotid vs nukleotid - mer fleksibel enn megablast - mindre sensitiv for fjerne homologer. 
+
+3. BLASTX - Nukleotid vs protein - oppdager proteinkodende regioner, finner homologer med evolusjonære endringer - kan overse ikke-kodende regioner. 
+
+4. TBLASTX - 6-ramme-oversatt DNA vs 6-ramme-oversatt DNA - mest sensitiv - best for å finne fjerne homologer - treg og ressurskrevende. 
+
+
+# 5 R-lab 
+
+## 5.1 Sammenstillinger og statistikk - simuleringer 
+
+### 5.1.1 Parvis sammenstilling i R 
+
+```{r}
+# De to protein-sekvensene vi vil sammenstille
+X <- "MSGNTFWLAAPWAALFVAALAAVWFPKLAVRVAGHAVFVALALALMLHWLPGFPIDDRARAWRAGIVAAAATSAVCLVFALGVGLVGWAPKWPESAWLWLANNLLFVCFAEEALFRGYLQGGLSRLLANRVPAAGTVALVAAALLFGAAHAAGGWQWVALATVAGVGYGLAYRAGGLQAAVLAHVGLNLAHFGLFTYPMLAVAR"
+Y <- "MQWQAVVIPYSLTVLLFLGPMFVNMQNESVRSYFDLHYWRGSFGSIIWVRNHVIAPLSEEFVFRACMMPLILQSFSPLVAVFITPLFFGVAHLHHIAERLSLGVELSTALLIGLFQFIYTTLFGFYSAFLFARTGHVMAPILVHAFCNHMGLPDLQDLWQQDLWRRVVAIILYLAGFVGWMFLVPLATDPSIYDNTLYWNA"
+score_XY <- pairwiseAlignment(X,
+                              Y,
+                              type = "local",
+                              substitutionMatrix = "BLOSUM62",
+                              scoreOnly = TRUE)
+cat("Dette ga en score paa", score_XY, "\n")
+```
+
+### 5.1.2 Mange ikke-homologe sekvenser 
+
+```{r}
+data(BLOSUM62)
+amino <- colnames(BLOSUM62)[1:20]
+N <- 9              # antall sekvenser vi simulerer
+L <- str_length(Y)  # lengden på sekvensene
+simulerte <- replicate(N, 
+                       paste(sample(amino,
+                                    size = L,
+                                    replace = TRUE),
+                             collapse = ""))
+print(simulerte)
+```
+
+### 5.1.3 Mange sammenstillinger 
+
+```{r}
+# Sammenstiller
+scores_XU <- pairwiseAlignment(rep(X, N),
+                               simulerte,
+                               type = "local",
+                               substitutionMatrix = "BLOSUM62",
+                               scoreOnly = TRUE)
+
+print(score_XY)
+print(scores_XU) 
+
+cat('Gjennomsnittlig score ved simulerte sekvenser:', mean(scores_XU))
+```
+
+Vi ser at scoren mellom X og Y er 34, mens den gjennomsnittlige scoren for tilfeldige sekvenser er 26. Dette tilsier at X og Y kan være homologe, men forskjellen er ikke veldig stor? 
+
+### 5.1.4 P-verdi 
+
+La oss beregne en p-verdi basert på dette. En p-verdi er sannsynligheten for å få en score som er minst like stor som den vi fikk først, gitt at sekvensene ikke er homologe. Vi kan beregne dette slik:
+
+- Legg alle score-verdier, både den første og alle de simulerte, i en lang vektor
+- Tell opp hvor mange av verdiene som er minst like stor som den første scoren
+- Divider dette på antall verdier i vektoren
+
+```{r}
+alle.scores <- c(score_XY, scores_XU)
+p.verdi <- sum(alle.scores >= score_XY) / length(alle.scores)
+```
+
+p-verdien er 0.1 < 0.05, så vi kan ikke forkaste nullhypotesen om at X og Y er homologe. 
+
+### 5.1.5 Bedre simuleringer? 
+
+```{r}
+amino.prob <- c(A = 0.082, R = 0.055, N = 0.040, D = 0.054, C = 0.013, 
+                Q = 0.039, E = 0.067, G = 0.070, H = 0.022, I = 0.059, 
+                L = 0.096, K = 0.058, M = 0.024, F = 0.047, P = 0.041, 
+                S = 0.066, T = 0.053, W = 0.010, Y = 0.029, V = 0.068)
+```
+
+```{r}
+simulerte <- replicate(N, 
+                       paste(sample(names(amino.prob),
+                                    size = L,
+                                    replace = TRUE,
+                                    prob = amino.prob),
+                             collapse = ""))
+```
+
+Legg merke til at vi her angir sannsynligheten for hver aminosyre (prob) når vi skal trekke de tilfeldige sekvensene. Dette gjør at sekvensene vi simulerer har fordeling av aminosyrer som likner på det proteiner generelt har. Dersom du jobber med en mer spesiell populasjon kan du estimere disse sannsynlighetene ved å se på mange proteinsekvenser der og så regne ut fordelingen.
+
+### 5.1.6 På egenhånd 
+
+**Bruk den forbedrede simuleringen over. Simuler 999 sekvenser basert på dette, og sammenstill disse med X sekvensen. Beregn p-verdien som over. Hva blir p-verdien?** 
+
+#### Simuler 999 sekvenser med de nye aminosyresannsynlighetene 
+
+```{r}
+# simuler 999 sekvenser med de nye sannsynlighetene 
+N2 <- 999 
+simulerte2 <- replicate(N2, 
+                        paste(sample(names(amino.prob), 
+                           size = L, 
+                           replace = TRUE, 
+                           prob = amino.prob), 
+                    collapse = "")) 
+```
+
+#### Sammenstill X med de simulerte sekvensene og beregn score
+
+```{r}
+# sammenstill X med de simulerte sekvensene 
+
+scores_XU_2 <- pairwiseAlignment(rep(X, N2), 
+                                 simulerte2, 
+                                 type = "local", 
+                                 substitutionMatrix = "BLOSUM62", 
+                                 scoreOnly = TRUE)
+                               
+print(score_XY)
+
+cat('Gjennomsnittlig score ved simulerte sekvenser:', mean(scores_XU_2))
+```
+
+#### Finn p-verdien 
+
+```{r}
+# beregn p-verdi
+alle.scores2 <- c(score_XY, scores_XU_2)
+p.verdi2 <- sum(alle.scores2 >= score_XY) / length(alle.scores2)
+
+cat('p-verdien ved 999 simulerte sekvenser:', p.verdi2)
+```
+
+**Lag et histogram over alle de 1000 scorene. Marker hvor `score_XY` ligger, f.eks med en vertikal strek. Hva sier dette deg?** 
+
+```{r}
+ggplot() + 
+  geom_histogram(aes(x = alle.scores2), bins = 25, fill = 'lightblue', color = 'black') + 
+  geom_vline(aes(xintercept = score_XY), col = 'red', linewidth = 0.5) + 
+  labs(title = 'Histogram: Score for 1000 simulerte sekvenser BLOSUM62', 
+       x = 'Score', 
+       y = 'Antall') + 
+  theme_minimal()
+```
+
+Den røde streken i histogrammet viser scoren for sammenstillingen XY. Vi ser at scoren for XY er høyere enn for majoriteten av de simulerte sekvensene, noe som indikerer at XY kan være homologe. 
+Men: med en p-verdi på 0.08, vil ikke sammenstillingen være signifikant ved et signifikansnivå på 0.05. 
+
+**Endre scoringsmatrisen til blosum45 og kjør alt på nytt. Endrer det noe?** 
+
+```{r}
+# De to protein-sekvensene vi vil sammenstille
+X <- "MSGNTFWLAAPWAALFVAALAAVWFPKLAVRVAGHAVFVALALALMLHWLPGFPIDDRARAWRAGIVAAAATSAVCLVFALGVGLVGWAPKWPESAWLWLANNLLFVCFAEEALFRGYLQGGLSRLLANRVPAAGTVALVAAALLFGAAHAAGGWQWVALATVAGVGYGLAYRAGGLQAAVLAHVGLNLAHFGLFTYPMLAVAR"
+Y <- "MQWQAVVIPYSLTVLLFLGPMFVNMQNESVRSYFDLHYWRGSFGSIIWVRNHVIAPLSEEFVFRACMMPLILQSFSPLVAVFITPLFFGVAHLHHIAERLSLGVELSTALLIGLFQFIYTTLFGFYSAFLFARTGHVMAPILVHAFCNHMGLPDLQDLWQQDLWRRVVAIILYLAGFVGWMFLVPLATDPSIYDNTLYWNA"
+score_XY2 <- pairwiseAlignment(X,
+                              Y,
+                              type = "local",
+                              substitutionMatrix = "BLOSUM45",
+                              scoreOnly = TRUE)
+cat("Dette ga en score paa", score_XY2, "\n")
+```
+
+
+#### Sammenstill X med de simulerte sekvensene og beregn score
+
+```{r}
+# sammenstill X med de simulerte sekvensene 
+
+scores_XU_3 <- pairwiseAlignment(rep(X, N2), 
+                                 simulerte2, 
+                                 type = "local", 
+                                 substitutionMatrix = "BLOSUM45", 
+                                 scoreOnly = TRUE)
+                               
+print(score_XY2)
+
+cat('Gjennomsnittlig score ved simulerte sekvenser:', mean(scores_XU_3))
+```
+
+#### Finn p-verdien 
+
+```{r}
+# beregn p-verdi
+alle.scores3 <- c(score_XY2, scores_XU_3)
+p.verdi3 <- sum(alle.scores3 >= score_XY2) / length(alle.scores3)
+
+cat('p-verdien ved 999 simulerte sekvenser:', p.verdi3)
+```
+
+**Lag et histogram over alle de 1000 scorene. Marker hvor `score_XY` ligger, f.eks med en vertikal strek. Hva sier dette deg?** 
+
+```{r}
+ggplot() + 
+  geom_histogram(aes(x = alle.scores3), bins = 25, fill = 'lightpink', color = 'black') + 
+  geom_vline(aes(xintercept = score_XY2), col = 'red', linewidth = 0.5) + 
+  labs(title = 'Histogram: Score for 1000 simulerte sekvenser BLOSUM45', 
+       x = 'Score', 
+       y = 'Antall') + 
+  theme_minimal()
+```
+
+Dersom vi endrer scoringsmatrisen til BLOSUM45, blir p-verdien høy og sammenstillingen mindre signifikant. 
+Blosum45 er med tillatende enn blosum62, og brukes for mindre beslektede sekvenser. 
+Blosum45 vil gi høyere poeng for mer ulike aminosyrer, noe som gjør at selv svakere samsvar får en relativt høy score. 
+Fordi blosum45 gir en økt gjennomsnittsscore for tilfeldige sammenstillinger, blir forskjellen mellom ekte og tilfeldig score mindre. Dette fører til en større p-verdi og lavere signifikans. 
+

@@ -1,0 +1,247 @@
+---
+title: "BIN210 innlevering uke3"
+author: "Ane Kleiven"
+date: "2025-02-17"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti 
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Bruk av Artificial Intelligence 
+
+AI er brukt til feilsøking av kode, samt forbedring og hjelp til ulike plot. ChatGPT er verktøyet som ble bruk, GPT-4. 
+Github Copilot er også brukt til hjelp med noe koding. 
+
+# Inspisere data med FastQC
+
+## Helgenomsekvensering av bakterie 
+
+**Hva er typisk ulikt når vi sammenligner R1 og R2 filene? Hvorfor er Illumina data ofte slik?**
+
+R1 har ofte bedre 'per base sequence quality' enn R2. Dette er fordi R1 er den første readen som blir tatt opp, og derfor har bedre kvalitet.
+R2 er den andre readen som blir tatt opp, og har derfor ofte dårligere kvalitet. Grunnen til at R2 har lavere kvalitet er fordi det er en større sannsynlighet for at det blir feil i sekvenseringen av R2 enn R1. Dersom feilavlesninger skjer, vil disse akkumulere etterhvert som de ulike avlesningene kommer i ubalanse.
+
+Kvaliteten på sekvenser avlest med Illumnina blir også dårligere utover i readene, etterhvert som feilavlesninger akkumulerer. 
+
+**Fanene som viser Per base sequence content viser ganske så flate kurver her, noe som gir “grønt lys”. Hvorfor forventer vi flate kurver her?**
+
+'Per base sequence content' viser hvor jevnt sekvensene er fordelt over basene. Dersom kurvene er flate, betyr det at sekvensene er jevnt fordelt over basene. Dette er en god indikasjon på at sekvensene er av god kvalitet. Vi forventer at for hver G, vil det være en C, og for hver A vil det være en T. De avleste sekvensene inneholder både den komplementære sekvensen og den originale sekvensen. 
+
+**Hva viser egentlig fanen Sequence duplication level?**
+
+'Sequence duplication level' viser hvor mange ganger en sekvens er duplisert i datasettet. Dersom en sekvens er duplisert mange ganger, kan det være et tegn på at det er en PCR bias i datasettet. Dette kan være et problem fordi det kan føre til at enkelte sekvenser blir overrepresentert i datasettet, og andre sekvenser blir underrepresentert.
+
+
+## Amplicon-sekvensering av et og samme gen fra mange bakterier
+
+La oss sammenligne det vi så med FastQC for shotgun-data over og disse amplicon-data:
+
+**Hvorfor har vi en stor forskjell mellom data-settene når vi ser på Per base sequence content?**
+Vi ser at kurvene for 'Per base sequence content' er mye mer flate for amplicon-dataene enn for shotgun-dataene. Dette er fordi amplicon-dataene er sekvenser av et og samme gen fra mange bakterier, mens shotgun-dataene er sekvenser av hele genomet til en bakterie. Dersom vi ser på shotgun-dataene representerer ulike sekvenser fra ulike bakterier, og baseinnholdet vil derfor variere noe fra sekvens til sekvens. 
+
+**Under fanene Sequence Duplication Levels kan det se ut som at amplicon-dataene er dårlige. Hva skyldes dette egentlig?**
+Amplicon-dataene har en høyere 'sequence duplication level' enn shotgun-dataene. Dette er fordi amplicon-dataene er sekvenser av et og samme gen fra mange bakterier, mens shotgun-dataene er sekvenser av hele genomet til en bakterie. Regioner som er like i bakteriene vil derfor være overrepresentert i datasettet, og dette vil føre til at 'sequence duplication level' er høyere for amplicon-dataene i noen områder enn for shotgun-dataene.
+
+# Kvalitetsscore
+
+## Kvalitetssekvens i fastq-filer
+
+Filen Amplicon16S_R2.fastq.gz er lest inn i koden nedenfor
+
+```{r}
+# last inn nødvendige pakker 
+library(microseq)
+
+# les fastq file 
+amplicon_16S_R2 <- readFastq("data/Amplicon16S_R2.fastq.gz")
+
+```
+
+**Hva slags data-type er Quality kolonnen? Hvor mange reads har vi her?** 
+
+Quality kolonnen består av symboler, og sier noe om kvaliteten på basen som er avlest. 
+Datatypen er chr (character), da den består av både tall og bokstaver. 
+Hver linje i fastq-filen representerer en read. Vi har 132060 rader i filen, og dermed 132060 reads.
+
+
+## Fra symbol til kvalitetsscore (Q-score) 
+
+```{r}
+# hent rad 100 i kvalitetskolonnen 
+Q.seq <- amplicon_16S_R2$Quality[100]
+
+# konverter symbol til Q-score 
+ASCII.score <- Q.seq |> 
+  charToRaw() |> 
+  strtoi(16L) 
+
+Q.score <- ASCII.score - 33 
+
+```
+
+**Hva er lengden på Q.score? Hva er minste og største Q.score?** 
+
+Lengden på Q.score er 301L (301 heltall) 
+Minste Q.score er 7, og største Q.score er 38.
+
+```{r} 
+lengde_Q.score <- length(Q.score)
+min_Q.score <- min(Q.score)
+maks_Q.score <- max(Q.score)
+
+```
+
+## Fra score til sannsynlighet 
+
+```{r}
+# beregn sannsynlighet for feil for hele sekvensen 
+P.error <- 10^(-Q.score/10)
+
+# minste og største sannsynlighet for feil
+P.min <- min(P.error)
+P.max <- max(P.error)
+```
+
+Minste sannsynlighet for feil er 0.1995, og største sannsynlighet for feil er 0.0002.
+
+## Kvalitet for hele sekvensen 
+
+```{r}
+# beregn gjennomsnittlig kvalitetsscore
+Q.score.mean <- mean(Q.score)
+
+# beregn gjennomsnittlig sannsynlighet for feil basert på gjennomsnittlig kvalitetsscore
+P.feil.mean <- 10^(-Q.score.mean/10)
+
+# beregn gjennomsnittlig sannsynlighet for feil basert på feil-sannsynlighetene
+P.error.mean <- mean(P.error)
+
+print(P.feil.mean)
+print(P.error.mean)
+```
+Vi ser at tallene for gjennomsnittlig sannsynlighet for feil for de to metodene er litt ulike, dette skyldes at vi har tatt gjennomsnittet av sannsynlighetene i den ene metoden, og beregnet sannsynligheten for feil basert på gjennomsnittlig kvalitetsscore i den andre metoden.
+
+Når man beregner gjennomsnittet av Q.score og finner sannsynligheten for feil, undervurderes sannsynligheten for feil fordi ekspotensialfunksjonen er ikke-lineær. 
+Gjennomsnittet av individuelle feil-sannsynligeter er derfor mer nøyaktig fordi den tar hensyn til den faktisk fordelingen av Q.score. 
+
+
+# R-lab 
+
+## Innlesing og manipulering av tabeller 
+
+```{r}
+library(tidyverse)
+
+low.status.tbl <- read_delim("data/sediment_sampling.tsv", delim = "\t") %>% 
+  mutate(Sampler = str_remove(string = Sampler, pattern = " AS")) %>% 
+  select(Status = nEQR, Sampler) %>% 
+  filter(Status < 0.5) %>% 
+  group_by(Sampler) %>% 
+  summarise(Status_mean = mean(Status))
+```
+
+## Mer om `ggplot()`
+
+```{r}
+metadata.tbl <- read_delim("data/sediment_sampling.tsv", delim = "\t") %>% 
+  mutate(Sampler = str_remove(string = Sampler, pattern = " AS"))
+
+fig1 <- ggplot(metadata.tbl) +
+  geom_bar(aes(x = Sampler)) +
+  labs(x = "Provetaker", y = "Antall prover") 
+
+print(fig1)
+```
+
+## På egenhånd 
+
+### Gjennomsnittlig miljøstatus for hver dominerende art 
+
+```{r}
+metadata.tbl.2 <- metadata.tbl |> 
+  select(Dominating_taxa, nEQR) |>
+  group_by(Dominating_taxa) |>
+  summarise(mean_EQR = mean(nEQR))
+
+min.EQR <- metadata.tbl.2[which.min(metadata.tbl.2$mean_EQR), ] 
+print(min.EQR)
+
+maks.EQR <- metadata.tbl.2[which.max(metadata.tbl.2$mean_EQR), ]
+print(maks.EQR)
+
+```
+**Er det noen av artene som er typiske for prøver med lav eller høy miljøstatus?**
+
+Byblis_crassicornis er den arten i datasettet med høyest gjennomnsnittlig EQR, og dermed best (høyest) miljøstatus. 
+
+Ophrytrocha_lobiferans er den arten i datasettet med lavest gjennomsnittlig EQR, og dermed lavest miljøstatus.
+
+
+### Utvid koden med gjennomsnitt av antall individer smådyr (No_individuals) for hver kategori av Dominating_taxa  
+
+```{r}
+metadata.tbl.3 <- metadata.tbl |> 
+  select(Dominating_taxa, nEQR, No_individuals) |>
+  group_by(Dominating_taxa) |>
+  summarise(mean_EQR = mean(nEQR), mean_No_individuals = mean(No_individuals))
+
+```
+
+### Figur med gjennomsnittlig miljøstatus for hver kategori av Dominating_taxa 
+
+```{r}
+
+ggplot(metadata.tbl.3) +
+  geom_col(aes(x = fct_reorder(Dominating_taxa, mean_EQR, .desc = TRUE), y = mean_EQR, fill = mean_No_individuals), 
+               position = position_dodge(width = 1.3)) +
+  labs(x = "Dominating taxa", y = "Mean EQR") +
+  coord_flip() +
+  scale_fill_gradient(low = "lightpink", high = "red") +
+  theme(axis.text.y = element_text(size = 5)) +
+  ggtitle("Mean EQR for each Dominating taxa")
+
+
+```
+
+### Mutasjon av artsnavn 
+
+```{r}
+metadata.tbl.4 <- metadata.tbl |> 
+  mutate(Dominating_taxa = str_to_title(Dominating_taxa)) |>
+  mutate(Dominating_taxa = str_replace_all(Dominating_taxa, pattern = 'Heteromastus_filimormis', replacement = 'Heteromastus_filiformis')) |>
+  mutate(Dominating_taxa = str_replace_all(Dominating_taxa, pattern = 'Ophiuroidea_indet._Juv.', replacement = 'Ophiuroidea_indet._Juv')) |>
+  mutate(Dominating_taxa = str_replace_all(Dominating_taxa, pattern = 'Ophiurioidea_indet._Juv.', replacement = 'Ophiuroidea_indet._Juv')) |>
+  mutate(Dominating_taxa = str_replace_all(Dominating_taxa, pattern = 'Leitoscoloplos_mammousus', replacement = 'Leitoscoloplos_mammosus')) |> 
+  mutate(Dominating_taxa = str_replace_all(Dominating_taxa, pattern = 'Onchnesoma_steenstrupii_steenstrupii', replacement = 'Onchnesoma_steenstrupii')) |>
+  group_by(Dominating_taxa) |> 
+  summarise(mean_EQR = mean(nEQR), mean_No_individuals = mean(No_individuals))
+
+```
+
+### Nytt plot med oppdaterte navn 
+
+```{r}
+ggplot(metadata.tbl.4) +
+  geom_col(aes(x = fct_reorder(Dominating_taxa, mean_EQR, .desc = TRUE), y = mean_EQR, fill = mean_No_individuals), 
+               position = position_dodge(width = 1.3)) +
+  labs(x = "Dominating taxa", y = "Mean EQR") +
+  coord_flip() +
+  scale_fill_gradient(low = "lightpink", high = "red") +
+  theme(axis.text.y = element_text(size = 5)) +
+  ggtitle("Mean EQR for each Dominating taxa")
+
+
+
+```
+
+

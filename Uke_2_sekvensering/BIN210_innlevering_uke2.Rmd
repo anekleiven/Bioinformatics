@@ -1,0 +1,240 @@
+---
+title: "BIN210 innlevering uke 2, sekvensering"
+author: "Par-gruppe 55: Ane Kleiven og Katrine Weilin Fredheim"
+date: "2025-02-10"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+# Bruk av Artificial Intelligence (AI)
+
+AI er brukt til feilsøking av kode, samt forbedring og hjelp til ulike plot. 
+ChatGPT er verktøyet som ble brukt. 
+
+# Beregne dekning (coverage) ved sekvensering
+
+### Sekvenseringsdybde 
+
+Vi har sekvensert et genom på G=3000000 (3 millioner) basepar, og har fått et data-sett bestående av N=30000 (30 tusen) reads av lengde L=300 som er sekvensert fra tilfeldige steder på genomet (shotgun-sekvensering).
+
+**Hva er sekvenseringsdybden?**
+
+Sekvenseringsdybden (D) er 3. Formel med utregning er vist i koden nedenfor. 
+
+```{r}
+G <- 3000000 # størrelse genom 
+N <- 30000 # antall reads 
+L <- 300 # lengde på reads 
+
+# sekvenseringsdybde: (N * L) / G
+
+D <- (N*L)/G
+```
+
+### Verdien til p 
+
+Sannsynligheten for at en read dekker en gitt posisjon er: 
+
+p = L/G, der L er lengden på reads og G er størrelsen på genomet (antall baser). 
+
+p = 0.0001 
+
+Beregning er vist i koden under. 
+
+```{r}
+p <- L/G
+p
+```
+### Sekvenseringsdybde og forventningsverdi 
+
+Vi har de tre formlene: 
+
+- Sekvenseringsdybden, D = (N*L)/G 
+
+- Forventningsverdien, E(y) = N * p 
+
+- p = L/G 
+
+Ved å sette inn formelen for p i E(y) får vi: 
+
+E(y) = N * L/G = (N*L) / G = D
+
+E(y) = D 
+
+Vi ser at forventningsverdien til y er det samme som sekvenseringsdybden, D. 
+
+
+### Sannsynligheten for at en posisjon dekkes av 0 reads 
+
+Sannsynligheten for at en posisjon dekkes av en read = p = 0.0001
+
+Finner først sannsynligheten for at en spesifikk base ikke dekkes av en gitt read. Siden dette er en binomisk fordeling vil den være 1-p: 
+
+```{r}
+1-p 
+```
+Finner deretter sannsynligheten for at ingen reads dekker en gitt base. Dette er sannsynligheten for at en gitt posisjon ikke dekkes av en gitt read, opphøyd i antall reads (N).   
+
+p_null_reads = 0.0498 = 4.98% 
+
+Utregning er vist i koden nedenfor. 
+
+```{r}
+# sa 
+p_null_reads <- (1-p)^N
+p_null_reads
+```
+### Antall reads for å få p_null_reads = 0.001
+
+Setter p_null_reads til 0.001 (en posisjon dekkes av 0 reads)
+
+Da får vi følgende formel: 
+
+0.001 = (0.9999)^N 
+
+log(0.001) = N *log(0.9999)
+
+N = log(0.001)/log(0.999) 
+
+Utregningen er vist i koden under. 
+
+```{r}
+
+N_0_reads <- log(0.001)/log(0.9999)
+
+```
+
+Ved å øke antall reads, N til minimum 69074 vil sannsynligheten for 0 reads ved en gitt posisjon 
+bli 0.001. 
+
+
+# Komplette genomer og “the power of R”
+
+### Innlesing av tabellen og data-wrangling 
+```{r, echo=FALSE}
+library(tidyverse)
+```
+
+```{r}
+# les inn tabellene med 'read.delim' 
+Borrelia_burgdorferi <- read.delim('data/Borreliella_burgdorferi.tsv')
+Escherichia_coli <- read.delim('data/Escherichia_coli.tsv')
+Salmonella_enterica <- read.delim('data/Salmonella_enterica.tsv') 
+Staphylococcus_aureus <- read.delim('data/Staphylococcus_aureus.tsv') 
+Streptococcus_pneumoniae <- read.delim('data/Streptococcus_pneumoniae.tsv') 
+Yersinia_pestis <- read.delim('data/Yersinia_pestis.tsv')
+
+# stable tabellene oppå hverandre med 'rbind' 
+bakterier_tab <- rbind(Borrelia_burgdorferi, 
+                       Escherichia_coli, 
+                       Salmonella_enterica,
+                       Staphylococcus_aureus, 
+                       Streptococcus_pneumoniae, 
+                       Yersinia_pestis)
+
+# rydd i kolonnen 'Organism.Name
+bakterier_tab <- bakterier_tab |> mutate(Organism.Name = word(Organism.Name, 1,2))
+
+# endre kolonnenavnene i tabellen 
+bakterier_tab <- bakterier_tab |> rename(Organism_name = Organism.Name, Level = Assembly.Level, Check_M_completeness = CheckM.completeness, Check_M_contamination = CheckM.contamination) 
+
+```
+
+### Oversikt over bakteriene i stolpediagram 
+
+```{r}
+# stolpediagram over antall genomer per bakterie laget med ggplot 
+# fill er satt til 'Level' for å dele stolpene etter fordelingen i denne kolonnen. 
+library(ggplot2)
+ggplot(bakterier_tab) + 
+  geom_bar(aes(x = Organism_name, fill = Level)) + 
+  labs(title = "Sekvensering av 6 ulike bakterier", x = "Bakterie", y = "Antall genom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+Vi ser at E.coli er sterkt overrepresentert i figuren over. E.coli vil være av interesse å sekvensere, da det både blir brukt eksperimentelt som modellorganisme (genekspresjon, plasmider etc), samt da bakterien er en patogen organisme. Salmonella sekvenseres for artsbestemmelse, samt monitorering av genotype ved sykdom/påvisning i forbindelse med utbrudd. 
+Staphylococcus aureus er en bakterie som kan utvikle multiresistens, og er dermed nødvendig å overvåke og kartlegge mutasjoner. Den blir også sekvensert for å spore utbrudd. 
+Når det gjelder sekvenseringsnivåene (Level), er det contigs som sekvenseres hyppigst. Bakterier sekvenseres ofte med Illumina. Illumina produserer gjerne Contigs, heller enn helgenom. 
+
+Scaffold og contig er de mest dominerende kategoriene, spesielt for bakterier med mange sekvenserte genomer. Mange bakteriegenomer blir sekvensert, men ikke nødvendigvis ferdigstilt til komplette kromosomer og helgenomer. Derfor er disse nivåene underrepresentert i figuren. 
+
+
+### Hvert genom som en prikk i et koordinat-system (check_m_completeness vs. check_m_contamination)
+
+Figurene under viser bakteriene E.coli, Staphylococcus aureus, Salmonella enterica, Streptococcus pneumoniae og forholdet mellom kompletthet og forurensning.
+
+Prosentvis kompletthet viser til grad av rekontruksjon av genomet etter sekvensering. 
+Prosentvis forurensning viser til nivå av foruresning i rekonstruert genom. 
+
+Vi observerer en trend hos alle bakteriene, hvor andelen forurensning er høyere i scaffolds og contigs, sammenlignet med kromosom og helgenom. 
+Scaffolds og contigs består av fragmentert data som gjør det vanskeligere å skille ut fragmenter fra andre organismer og kilder til DNA. 
+Komplette genomer består av sammenhengende sekvenser, og vil derfor ha lavere forurensning. 
+
+```{r}
+ggplot(bakterier_tab[bakterier_tab$Organism_name == "Escherichia coli", ]) + 
+  geom_point(aes(x = Check_M_completeness, y = Check_M_contamination)) + facet_wrap(~Level) +
+  labs(title = "Escherichia coli", x = "Check M completeness (%)", y = "Check M contamination (%)")
+```
+```{r}
+ggplot(bakterier_tab[bakterier_tab$Organism_name == "Staphylococcus aureus", ]) + 
+  geom_point(aes(x = Check_M_completeness, y = Check_M_contamination)) + facet_wrap(~Level) +
+  labs(title = "Staphylococcus aureus", x = "Check M completeness (%)", y = "Check M contamination (%)")
+```
+```{r}
+ggplot(bakterier_tab[bakterier_tab$Organism_name == "Salmonella enterica", ]) + 
+  geom_point(aes(x = Check_M_completeness, y = Check_M_contamination)) + facet_wrap(~Level) +
+  labs(title = "Salmonella enterica", x = "Check M completeness (%)", y = "Check M contamination (%)")
+```
+
+```{r}
+ggplot(bakterier_tab[bakterier_tab$Organism_name == "Streptococcus pneumoniae", ]) + 
+  geom_point(aes(x = Check_M_completeness, y = Check_M_contamination)) + facet_wrap(~Level) +
+  labs(title = "Streptococcus pneumoniae", x = "Check M completeness (%)", y = "Check M contamination (%)")
+```
+
+# R-lab 
+## Forbedre figuren 
+
+```{r}
+#R-lab - oppgave 5 
+
+metadata.tbl <- read_delim("data/sediment_sampling.tsv", delim = "\t") %>% 
+  mutate(Sampler = str_remove(string = Sampler, pattern = " AS"))
+
+head(metadata.tbl)
+
+```
+
+```{r}
+# Last inn nødvendige pakker
+library(ggplot2)
+
+# Lag ggplot med justeringer
+fig1 <- ggplot(metadata.tbl, aes(x = No_species, y = nEQR, color = Farmdistance)) + 
+  geom_point() +  
+  scale_x_continuous(limits = c(0, 150)) +
+  labs(
+    title = "Sammenheng mellom antall arter og miljostatus",
+    x = "Antall arter smaadyr",  
+    y = "Miljostatus"
+  ) + 
+  theme_minimal() + 
+  theme(
+    panel.background = element_rect(fill = "lightyellow"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  ) +
+  scale_color_gradient(low = "lightblue", high = "darkblue")  
+
+print(fig1)
+```
+

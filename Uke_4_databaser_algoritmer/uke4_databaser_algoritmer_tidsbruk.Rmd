@@ -1,0 +1,447 @@
+---
+title: "Øving uke 4"
+author: "Ane Kleiven"
+date: "2025-02-25"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Bruk av artificial intelligence 
+
+ChatGPT (versjon 4) ble brukt til å assistere med diverse feilkoder, samt rådføring ved nedlasting av GFF3-filen. 
+Github copilot ble brukt til noe hjelp med koding, når jeg satt fast.
+
+# Tidsbruk og lagringsplass 
+## 2.1 Lage alle DNA-sekvenser av lengde K
+
+Funksjon som genererer alle DNA-sekvenser av lengde K er vist i koden under. 
+```{r}
+Kmers <- function(K, iter = 1, alphabet = c("A","C","G","T")){
+  require(stringr)
+  if(iter < K){
+    w <- Kmers(K, iter + 1, alphabet)
+    w <- str_c(rep(w, each = length(alphabet)),
+               rep(alphabet, times = length(w)))
+  } else {
+    w <- alphabet
+  }
+  return(sort(w))
+}
+```
+
+```{r}
+Kmers(1)
+Kmers(2)
+Kmers(3)
+```
+## 2.2 Sekvenser av lengde opp til 12
+```{r}
+
+library(tidyverse)
+
+tid_lagring.tbl <- tibble(Lengde = 1:25,   # DNA-sekvenser av lengder 1,...,25
+                          Sekunder = 0,
+                          Bytes = 0,
+                          Sekunder_predikert = 0,
+                          Bytes_predikert = 0)
+for(k in 1:12){  # vi stopper ved 12, kan også stoppe ved 11 eller 10 hvis nødvendig
+  cat("Finner alle DNA sekvenser av lengde", tid_lagring.tbl$Lengde[k], "\n")
+  tid_lagring.tbl$Sekunder[k] <- system.time(v <- Kmers(K = tid_lagring.tbl$Lengde[k]))[3]
+  tid_lagring.tbl$Bytes[k] <- as.numeric(object.size(v))
+}
+```
+## 2.3 Modell for tidsbruk og lagring 
+
+```{r}
+modell.tid <- lm(log10(Sekunder)~Lengde, data = tid_lagring.tbl, subset = 8:12)
+summary(modell.tid)
+```
+## 2.4 Prediker tidsbruk 
+
+```{r}
+sekunder.predikert <- 10^(predict(modell.tid, newdata = tibble(Lengde = 1:12)))
+sekunder.predikert
+```
+*Prediker antall sekunder det vil ta å generere alle sekvenser av lengde K fra 1 og opp til 25. Legg dette inn i kolonnen Sekunder_predikert i tabellen. Omtrent hvor lang tid vil det ta med K=25? Regn om fra sekunder til mer hensiktsmessig tids-enhet når du svarer på dette*
+
+```{r}
+sekunder.predikert <- 10^(predict(modell.tid, newdata = tibble(Lengde = 1:25)))
+sekunder.predikert
+```
+```{r}
+tid_lagring.tbl <- tid_lagring.tbl |>
+  mutate(Sekunder_predikert = sekunder.predikert)
+
+```
+
+```{r}
+library(glue)
+
+# regn ut tidsbruk for K=25 fra sekunder til år
+tid_K25 <- tid_lagring.tbl$Sekunder_predikert[25] / 60 / 60 / 24 / 365
+
+print(glue("Tidsbruk for K=25: {round(tid_K25, 2)} aar"))
+```
+## 2.5 Lagring 
+
+```{r}
+modell.bytes <- lm(log10(Bytes)~Lengde, data = tid_lagring.tbl, subset = 1:12)
+summary(modell.bytes)
+```
+*Prediker lagringsplass for K lik 1 til 25 og legg i kolonnen Bytes_predikert. Hvor mye lagringsplass trenger vi målt i gigabytes? Hvor mye lagringsplass har du på din PC?*
+
+```{r}
+bytes.predikert <- 10^(predict(modell.bytes, newdata = tibble(Lengde = 1:25)))
+tid_lagring.tbl <- tid_lagring.tbl |>
+  mutate(Bytes_predikert = bytes.predikert)
+```
+
+```{r}
+# bytes til gigabytes
+gigabytes.predikert <- tid_lagring.tbl$Bytes_predikert / 1024^3 
+```
+
+```{r}
+print(glue('For aa lagre alle DNA-sekvenser av lengde 1 til 25 trenger vi {round(gigabytes.predikert[25], 2)} GB'))
+```
+Som vist ovenfor trenger vi 80 millioner GB for å lagre alle sekvenser fra lengde 1-25. På min PC har jeg 500 GB lagringsplass. 
+
+## 2.6 Store-O notasjon
+
+*Beskriv med store-O notasjon hvordan både tidsforbruk og lagringsplass øker med lengden på DNA-sekvensene K. Google begrepet “NP-komplett”. Hva er dette?*
+
+Tidsforbruk og lagringsplass øker eksponentielt med lengden på DNA-sekvensene K. Tidsforbruket øker med O(4^K) og lagringsplassen øker med O(4^K), siden antall ulike baser i en DNA-sekvens er 4. 
+
+NP-komplett er en klasse av problemer som er minst like vanskelig som de vanskeligste problemene i NP. 
+Dette betyr at dersom et NP-komplett problem kan løses i polynomisk tid, kan alle problemer i NP løses i polynomisk tid.
+
+Det mest karakteristiske kjennetegnet på et NP-komplett problem er at det ikke finnes noen effektiv måte å løse det på. Selv om en gitt løsning lar seg kontrollere raskt, er det mye vanskeligere å finne løsningen i utgangspunktet. Tiden algoritmer som løser et slikt problem bruker, øker svært fort sammenlignet med størrelsen på problemet. Det fører til at det tar uforholdsmessig lang tid å løse selv middels store problemer.
+
+
+# 3 Bioinformatiske data - Nitrogen-omsetning i jord
+
+## 3.1 Søk hos NCBI
+
+*Søk med kort-navnet til genet hos NCBI, og fokuser kun på treff i databasen Protein. Rapporter eksakt hvilken tekst du søkte med og antall treff det ga.* 
+
+Søk: nirK[All Fields] 
+Antall treff: 61526 
+
+*Utvid søke-teksten slik at du unngår treff mot alt som er uncultured. HINT: Bruk den logiske operatoren NOT. Rapporter igjen eksakt søketekst og antall treff.*
+
+Søk: nirK[All Fields] NOT uncultured[All Fields]
+Antall treff: 23762
+
+*Legg inn som et krav i søke-teksten at lengden skal være mellom 200 og 2000. HINT: teksten 200:2000[slen] angir at vi vil ha sekvenslengden i intervallet 200 til 2000. Hvor mange treff endte du opp med til slutt?* 
+
+Søk: (nirK[All Fields] AND 000200[SLEN] : 002000[SLEN]) NOT uncultured[All Fields]
+Antall treff: 16921
+
+## 3.2 Søk hos UniProt 
+
+*Søk med teksten nirK hos UniProt. Du får da typisk rapportert et antall treff i Swiss-Prot delen og i TrEMBL delen av databasen. Rapporter antall treff det ga i begge delene. Hva er forskjellen på Swiss-Prot og TrEMBL?.*
+
+Søkeord: nirK 
+Antall treff i Swiss-Prot: 8 
+Antall treff i TrEMBL: 25401 
+
+Swiss-Prot er sekvenser som er 'reviewed', vurdert og gjennomgått av fagfolk. Sekvensene er manuelt annotert og av høy kvalitet.  
+TrEMBL er sekvenser som er 'unreviewed, ikke vurdert eller gjennomgått. Disse er kun annotert av datamaskiner, og har dårligere kvalitet. 
+
+## 3.3 Les inn filer i R
+
+*Les inn FASTA-filen med readFasta() fra R pakken microseq.* 
+
+```{r}
+library(microseq)
+
+nirK_fasta <- readFasta('data/NCBI_nirk_2025_02_25.fasta.fasta')
+```
+
+*Les inn GFF3-filen med readGFF() også fra microseq pakken.* 
+```{r}
+nirK_gff3 <- readGFF('data/NCBI_nirk_2025_02_25.gff3')
+```
+
+
+*Les inn TSV-filen med read_tsv() fra tidyverse pakkene.*
+```{r}
+nirK_tsv <- read_tsv('data/uniprotkb_nirK_2025_02_25.tsv.gz')
+```
+
+*Antall rader i de ulike tabellene:* 
+FASTA-tabell: 2 kolonner, 16921 rader 
+GFF3-tabell: 9 kolonner, 78958 rader
+TSV-tabell: 9 kolonner, 25409 rader 
+
+## 3.4 Litt om FASTA 
+
+*Lag en ny kolonne kalt Seqid og som inneholder bare det første ordet i Header-tekstene.*
+
+```{r}
+nirK_fasta <- nirK_fasta |>
+  mutate(Seqid = word(Header, start = 1, end = 1)) 
+```
+
+## 3.5 Litt om GFF3
+
+*Lag koden som lager en mini-versjon av GFF3-tabellen som bare inneholder polypeptide radene og bare kolonnenen Seqid og End. Døp om sistnevnte kolonne til Length. Hvor mange rader får du nå?* 
+
+```{r}
+nirK_gff3_mini.tbl <- nirK_gff3 %>% 
+  filter(Type == "polypeptide") %>% 
+  select(Seqid, Length = End)
+nrow(nirK_gff3_mini.tbl)
+```
+Den nye tabellen har 16882 rader. 
+
+*Flett sammen denne tabellen med FASTA-tabellen. Bruk funksjonen full_join() fra dplyr pakken, og bruk Seqid som kolonnen som fletter de sammen. Hvor mange rader har den nye tabellen?* 
+
+```{r}
+nirK_NCBI.tbl <- full_join(nirK_fasta, nirK_gff3_mini.tbl, by = "Seqid")
+nrow(nirK_NCBI.tbl)
+```
+Den nye tabellen har 16929 rader. 
+
+*Erstatt full_join() med inner_join() for å bare ende med rader som begge tabeller har. Hvor mange rader får du nå?* 
+
+```{r}
+nirK_NCBI.tbl2 <- inner_join(nirK_fasta, nirK_gff3_mini.tbl, by = "Seqid")
+nrow(nirK_NCBI.tbl2)
+```
+Den nye tabellen har 16874 rader. 
+
+*Lag et histogram over nirK sekvenslengdene fra NCBI.* 
+
+```{r}
+hist(nirK_NCBI.tbl2$Length, main = "Histogram over nirK sekvens-lengder fra NCBI", xlab = "Lengde")
+```
+*Hvordan kunne vi ha laget kolonnen Length på en enklere måte?* 
+
+Vi kunne ha laget kolonnen Length ved å subtrahere Start fra End i GFF3-tabellen.
+
+## 3.6 UniProt-dataene 
+
+*Filtrer ut alle sekvenser fra TSV-tabellen som har teksten "uncultured" i Organism-kolonnen*
+
+```{r}
+nirK_tsv_filtrert <- nirK_tsv |>
+  filter(!str_detect(Organism, "uncultured"))
+```
+
+*Filtrer ut alle sekvenser fra TSV-tabellen som har lengde mindre enn 200 eller større enn 2000. Hvor mange sekvenser er det igjen?* 
+
+```{r}
+nirK_tsv_filtrert <- nirK_tsv_filtrert |>
+  filter(Length >= 200 & Length <= 2000)
+
+nrow(nirK_tsv_filtrert)
+```
+Etter filtrering er det 4649 rader igjen i TSV-tabellen. 
+
+## 3.7 Alt i alt 
+
+*Lag koden som gir oss en endelig nirK-tabell som kun inneholder de sekvensene som finnes både hos NCBI og hos UniProt. Generer denne tabellen ved å flette sammen de to tabellene du endte opp med over (en fra NCBI og en fra UniProt). Hvor mange unike sekvenser endte vi opp med?*
+
+```{r}
+nirK_endelig.tbl <- inner_join(nirK_NCBI.tbl2, nirK_tsv_filtrert, by = 'Sequence') 
+nrow(nirK_endelig.tbl)
+```
+Vi endte opp med 8731 unike tabeller etter filtrering og fletting. 
+
+# R-lab 
+
+## 4.2 Data fra Uniprot 
+
+```{r}
+uniprot.tbl <- read_tsv('data/uniprotkb_nirK_2025_02_25.tsv.gz')
+```
+
+```{r}
+# endre kolonnenavn på 'Taxonomic lineage' 
+
+uniprot.tbl <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`)
+
+```
+
+## 4.3 Hente ut deltekster med `word()`
+
+```{r}
+# hent ut genus 
+uniprot.tbl <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |>
+  mutate(Genus = word(Taxonomic_lineage, start = -1, end = -1, sep = ','))
+```
+
+## 4.4 Finne forekomster av tekst med `str_detect()`
+
+```{r}
+# fjern '(genus)' fra 'Genus'
+uniprot.tbl <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |>
+  mutate(Genus = word(Taxonomic_lineage, start = -1, end = -1, sep = ',')) |> 
+  filter(str_detect(Genus, 'genus')) 
+
+nrow(uniprot.tbl)
+```
+## 4.5 Fjerne tekst med str_remove()
+
+```{r}
+uniprot.tbl <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |>
+  mutate(Genus = word(Taxonomic_lineage, start = -1, end = -1, sep = ',')) |> 
+  filter(str_detect(Genus, 'genus')) |> 
+  mutate(Genus = str_remove(Genus, '\\(genus\\)')) 
+```
+
+```{r}
+uniprot.tbl$Genus[1]
+```
+## 4.6 Fjerne mellomrom med str_trim()
+
+```{r}
+uniprot.tbl <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |>
+  mutate(Genus = word(Taxonomic_lineage, start = -1, end = -1, sep = ',')) |> 
+  filter(str_detect(Genus, 'genus')) |> 
+  mutate(Genus = str_remove(Genus, '\\(genus\\)')) |> 
+  mutate(Genus = str_trim(Genus))
+```
+
+```{r}
+# sjekk første rad i kolonnen 'Genus' 
+uniprot.tbl$Genus[1]
+nrow(uniprot.tbl)
+```
+## 4.7 Litt oppsummering rundt stringr funksjonene
+
+```{r}
+svar <- "  Dette   er    1    test  " |> 
+  str_squish() |> 
+  str_remove("1") |>
+  str_trim() |> 
+  word(1, 2)
+
+svar
+```
+
+## 4.8 Opptelling av genera
+
+```{r}
+uniprot.tbl |> 
+  count(Genus, name = "antall_nirK") |> 
+  arrange(desc(antall_nirK)) |> 
+  slice(1:10) |> 
+  mutate(Genus = fct_reorder(Genus, antall_nirK)) |> 
+  ggplot() + 
+  geom_col(aes(x = Genus, y = antall_nirK)) + 
+  coord_flip() +
+  labs(x = "Slekt", y = "Antall nirK sekvenser", title = "De 10 mest vanlige slektene")
+```
+## 4.9 Bytter ut word() med str_extract() 
+
+```{r}
+uniprot.tbl <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |> 
+  mutate(genus = str_extract(Taxonomic_lineage, pattern = ",[A-Za-z0-9 ]+?\\(genus")) |> 
+  drop_na(genus)
+```
+
+
+## 4.10 På egenhånd
+
+*Legg inn resten av koden som trengs for å gå fra det siste vi gjorde over her til å få figuren som viser de 10 mest vanlige slektene igjen.* 
+
+```{r}
+uniprot.tbl2 <- read_tsv("data/uniprotkb_nirK_2025_02_25.tsv.gz") |>  
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |> 
+  mutate(genus = str_extract(Taxonomic_lineage, pattern = ",[A-Za-z0-9 ]+?\\(genus")) |> 
+  drop_na(genus) |> 
+  mutate(genus = str_remove(genus, '\\(genus')) |>
+  mutate(genus = str_remove(genus, ',')) |> 
+  mutate(genus = str_trim(genus))
+
+nrow(uniprot.tbl2)
+  
+```
+
+```{r}
+uniprot.tbl2$genus[1]
+```
+```{r}
+uniprot.tbl2 |> 
+  count(genus, name = "antall_genus") |>
+  arrange(desc(antall_genus)) |> 
+  slice(1:10) |>
+  mutate(genus = fct_reorder(genus, antall_genus)) |>
+  ggplot() + 
+  geom_col(aes(x = genus, y = antall_genus)) + 
+  coord_flip() + 
+  labs(x = 'Slekt', y = 'Antall nirK sekvenser', title = 'De 10 mest vanlige slektene')
+```
+
+*I oppgave 3 tidligere så endte vi til slutt opp med en endelig tabell over nirK-gener basert på nedlastinger både fra NCBI og UniProt. Bruk nå denne som input. Gjør også om koden slik at det istedenfor å vise de vanligste slektene viser de vanligste phylaene og lag tilsvarende figur som over.* 
+
+```{r}
+nirK_endelig.tbl2 <- nirK_endelig.tbl |>
+  rename(Taxonomic_lineage = `Taxonomic lineage`) |> 
+  mutate(phylum = str_extract(Taxonomic_lineage, pattern = ',[A-Za-z0-9 ]+?\\(phylum\\)')) |>
+  drop_na(phylum) |>
+  mutate(phylum = str_remove(phylum, ',')) |> 
+  mutate(phylum = str_remove(phylum, '\\(phylum\\)')) |> 
+  mutate(phylum = str_trim(phylum))
+
+nirK_endelig.tbl2$phylum[1]
+```
+```{r}
+nirK_endelig.tbl2 |> 
+  count(phylum, name = "antall_phylaer") |>
+  arrange(desc(antall_phylaer)) |> 
+  slice(1:10) |>
+  mutate(phylum = fct_reorder(phylum, antall_phylaer)) |>
+  ggplot() + 
+  geom_col(aes(x = phylum, y = antall_phylaer)) + 
+  coord_flip() + 
+  labs(x = 'Phyla', y = 'Antall nirK sekvenser', title = 'De 10 mest vanlige phylaene')
+```
+
+*Google det vanligst forekommende phylum og finn ut litt om hva dette er for noe.*
+
+Svar fra ChatGPT: 
+
+Et "phylum" (eller "rekke" på norsk) er en av de høyere kategoriene i biologisk klassifisering, som grupperer organismer basert på grunnleggende strukturelle og funksjonelle likheter. For eksempel tilhører alle virveldyr rekken Chordata. 
+SNL.NO
+
+Når det gjelder det vanligst forekommende phylum globalt, er det flere kandidater avhengig av hvilke kriterier man ser på. Rundormer (Nematoda) er en av de mest tallrike dyregruppene på jorden og finnes i nesten alle miljøer, fra havdyp til fjelltopper. I en råtnende eple har man funnet opptil 90 000 individer, og i seks milliliter marint sediment har man observert over tusen individer fordelt på 236 ulike arter. 
+IDUNN.NO
+
+En annen svært utbredt dyregruppe er leddyr (Arthropoda), som inkluderer insekter, edderkopper og krepsdyr. Disse er kjent for sin enorme artsrikdom og finnes i et bredt spekter av habitater over hele verden.
+
+Uten spesifikke data fra ditt datasett er det vanskelig å fastslå hvilket phylum som er mest vanlig der. Generelt sett er både rundormer og leddyr blant de mest utbredte og tallrike phylaene på jorden.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
