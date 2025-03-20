@@ -1,6 +1,6 @@
 # 🧬 Bioinformatics Coursework
 
-This repository contains coursework for the bioinformatics course. Each folder corresponds to a specific week and contains relevant assignments and scripts.
+This repository contains coursework for the BIN210 bioinformatics course at NMBU. Each folder corresponds to a specific week and contains relevant assignments and scripts.
 
 ## 📂 Folder Structure
 
