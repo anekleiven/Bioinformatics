@@ -1,0 +1,402 @@
+---
+title: "BIN210 Innlevering uke 9, fylogeni"
+author: "Ane Kleiven"
+date: "2025-03-30"
+output: 
+  html_document:
+    html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Bruk av artificial intelligence (AI) 
+
+Chat-GPT (versjon 4) er brukt til hjelp med feil i koden. 
+Chat-GPT har også vært brukt for å forklare kode.
+
+Github CO-pilot har vært på underveis, og har hjulpet til med noe generering av kode. 
+
+# Last inn aktuelle R-pakker 
+
+```{r}
+library(knitr)
+library(tidyverse)
+library(microseq) 
+library(ape) 
+library(msa) 
+```
+
+# 2 Newick-formatet 
+
+**Tegn for hånd det kladogrammet som er angitt her:** 
+
+```{r, eval = F}
+(((OTU3,OTU4),OTU5),((OTU2,OTU6),OTU1))
+```
+
+```{r, fig.height=1,fig.width=2}
+# sett inn  bilde av det tegnede kladogrammet 
+include_graphics('data/newick_format.png')
+```
+**Motsatt, skriv følgende kladogram på Newick-format:**
+
+```{r, fig.height=1,fig.width=2}
+include_graphics('data/newick_format2.png')
+```
+
+```{r, eval = F} 
+# newick-formatet til treet over
+(((OTU1, OTU2),(OTU4, OTU5)),(OTU3, OTU6))
+```
+
+### Tegn treet med ape
+
+```{r}
+newick.tekst <- "(((OTU1, OTU2),(OTU4, OTU5)),(OTU3, OTU6));"
+tre <- read.tree(text = newick.tekst)
+plot(tre)
+```
+
+# 3 Evolusjonære avstander
+
+**Et 16S gen er omtrent 1500 baser langt. Omtrent hvor mange baser kan da være ulike mellom to slike gener fra samme gruppe?** 
+
+p-distanse = 0.03 
+
+p-distanse = antall ulike baser / antall baser 
+
+x / 1500 = 0.03 -> x = 1500 * 0.03 = 45 
+
+45 baser kan være ulike mellom to slike gener fra samme gruppe. 
+
+## 3.1 Last ned data 
+
+*Se HTML-fil for øving uke 9, her er nedlastningslenkene til datafilene:* 
+
+```{r, eval = F}
+tcoffee_OTU_msa.fasta
+muscle_OTU_msa.fasta
+clustal_OTU_msa.fasta
+```
+
+## 3.2 Les inn data i R 
+
+**Sjekk ut hvordan du kan lese ei fasta-fil med read.dna() og lag koden for å gjøre dette for alle de tre filene.** 
+
+```{r}
+msa_tcoffe.bin <- read.dna(file = 'data/muscle_OTU_msa.fasta.txt', format = 'fasta')
+msa_muscle.bin <- read.dna(file = 'data/tcoffee_OTU_msa.fasta.txt', format = 'fasta')
+msa_clustal.bin <- read.dna(file = 'data/clustal_OTU_msa.fasta.txt', format = 'fasta')
+```
+
+## 3.3 Beregne evolusjonære avstander 
+
+```{r}
+# beregn p-distanse
+avst_tcoffee <- dist.dna(msa_tcoffe.bin, model = "raw")
+avst_muscle <- dist.dna(msa_muscle.bin, model = "raw")
+avst_clustal <- dist.dna(msa_clustal.bin, model = "raw")
+```
+
+Antall parvise avstander = N * (N-1) / 2 
+der N er antall sekvenser 
+alle sekvenser kan sammenlignes med hverandre (N-1)
+vi deler på 2 fordi vi ikke trenger å sammenligne sekvensene ved hverandre to ganger (A-B er lik B-A) 
+**Lag histogram over avstandene fra de tre filene, og kommenter om det viser forskjeller.** 
+
+```{r}
+hist(avst_tcoffee, col = 'lightblue', main = 'Avstander fra tcoffee', xlab = 'Avstander')
+```
+
+```{r}
+hist(avst_muscle, col = 'lightpink', main = 'Avstander fra muscle', xlab = 'Avstander') 
+```
+
+```{r}
+hist(avst_clustal, col = 'lightyellow', main = 'Avstander fra clustal', xlab = 'Avstander')
+```
+
+Histogrammene over er forskjellige, fordi de ulike metodene for å sammenstillle sekvensene er forskjellige.
+Fra t-coffee, ser vi at de fleste avstandene er mellom 0.1 og 0.2, mens fra muscle er majoriteten av avstandene mellom 0.05 og 0.025. 
+Clustal har de fleste avstander rundt 0.15-0.20 og mindre variasjon i avstander enn de to andre metodene. 
+
+Muscle bruker en iterativ tilnærming, hvor den starter med en progressiv tilnærming, og deretter forbedrer sammenstillingen underveis. Dette kan gi en mer nøyaktig sammenstilling, og kan også være grunnen til høyere variasjon på dette histogrammet. 
+
+Clustal er en av de eldste metodene for sammenstilling av sekvenser, og bruker en progressiv tilnærming. Her vil de mest like sekvensene justeres først, og justeringen bygges på. Den er mer konservativ i sine justeringer, og kan ha mindre fleksiilitet enn de andre metodene. 
+
+T-coffee er en mellomting mellom Clustal og Muscle, og bruker en kombinasjon av flere metoder for å sammenstille sekvensene. 
+
+## 3.4 Gruppere sekvenser 
+
+**Sett dette sammen all koden over slik du får en gruppering for hver av de tre filene du leste inn i starten. Bruk først en p-distanse grense på 0.03. Endre deretter grensen til 0.01 og 0.05, og rapporter antall grupper i en liten tabell.**
+
+```{r}
+dendrogram_tcoffee <- hclust(avst_tcoffee, method = "complete")
+klader_tcoffee <- cutree(dendrogram_tcoffee, h = 0.03)
+klader_t_coffe_0.05 <- cutree(dendrogram_tcoffee, h = 0.05)
+klader_t_coffe_0.01 <- cutree(dendrogram_tcoffee, h = 0.01)
+```
+
+```{r}
+dendrogram_mucle <- hclust(avst_muscle, method = "complete") 
+klader_muscle <- cutree(dendrogram_mucle, h = 0.03)
+klader_muscle_0.05 <- cutree(dendrogram_mucle, h = 0.05)
+klader_muscle_0.01 <- cutree(dendrogram_mucle, h = 0.01)
+```
+
+```{r}
+dendrogram_clustal <- hclust(avst_clustal, method = "complete") 
+klader_clustal <- cutree(dendrogram_clustal, h = 0.03)
+klader_clustal_0.05 <- cutree(dendrogram_clustal, h = 0.05)
+klader_clustal_0.01 <- cutree(dendrogram_clustal, h = 0.01)
+```
+
+```{r}
+klader_list <- list(klader_tcoffee, klader_t_coffe_0.05, klader_t_coffe_0.01, klader_muscle, klader_muscle_0.05, klader_muscle_0.01, klader_clustal, klader_clustal_0.05, klader_clustal_0.01)
+
+klader <- function(klader) {
+    return(length(unique(klader)))
+  }
+
+# Create a vector to store the number of groups
+num_groups <- sapply(klader_list, klader)
+print(num_groups)
+
+# Convert the result to a table with names
+num_groups_table <- data.frame(
+  Klader = c("klader_tcoffee", "klader_t_coffe_0.05", "klader_t_coffe_0.01", 
+             "klader_muscle", "klader_muscle_0.05", "klader_muscle_0.01", 
+             "klader_clustal", "klader_clustal_0.05", "klader_clustal_0.01"),
+  Number_of_Groups = num_groups
+)
+
+# Print the table
+print(num_groups_table) 
+```
+Vi ser i tabellen over at antall grupper minker med økende p-distanse. 
+Dette er forventet, da vi grupperer sekvenser som er mer like hverandre. Ved høyere p-distanse, vil flere sekvenser være like, og dermed grupperes sammen.
+
+**Dersom en gruppering på avstand 0.03 gir oss omtrent antall arter, hva er da effektene av metoden vi brukte for å sammenstille sekvensene?** 
+
+Antall arter t_coffee: 44
+Antall arter muscle: 32 
+Antall arter clustal: 46 
+
+Vi ser at antall arter er høyere ved clustal og t_coffee, enn ved muscle. Muscle bruker en iterativ tilnærming, og vil dermed kunne gi en mer nøyaktig sammenstilling. Dette kan føre til at vi får færre arter, da vi er mer sikre på at de er like. 
+
+T-coffee bruker en kombinasjon av flere metoder, og vil dermed kunne gi noe mer nøyaktig sammenstilling enn clustal. 
+Clustal kan være mer sensitiv for små genetiske forskejller, og vil dermed kunne gi flere arter. 
+
+# 4 Distansebasert tre i R
+
+**Lag en multippel sammenstilling av sekvensene slik vi gjorde i Rlab i uke 7. Bruk metoden "Muscle" i msa() funksjonen.**
+
+```{r}
+mtDNA.ss <- readDNAStringSet("data/primates_mtDNA.fasta.txt")
+mtDNA.msa <- msa(mtDNA.ss, method = "Muscle")
+mtDNA.msa
+```
+## 4.2 Evolusjonære avstander 
+
+**Konverter objektet med sammenstillingen til DNAbin og beregn først p-avstander (model "raw") og lagre i d.raw. Beregn så tilsvarende avstander basert på Jukes-Cantor modellen, Felsenstein 1981 modellen og Tamura og Nei (1995) modellen. Lagre alle som egne objekter. Skriv kort hva de ulike modellene antar.** 
+
+```{r}
+msa_to_DNAbin <- msaConvert(mtDNA.msa, type = "ape::DNAbin")
+d.raw <- dist.dna(msa_to_DNAbin, model = "raw")
+```
+
+raw er basert på p-avstander, proporsjonen av ulike baser mellom to sekvenser. 
+```{r}
+d.jc <- dist.dna(msa_to_DNAbin, model = "JC69")
+```
+
+Jukes-Cantor modellen antar at alle baser har samme sannsynlighet for å endres, og at endringene er uavhengige av hverandre.
+
+```{r}
+d.f81 <- dist.dna(msa_to_DNAbin, model = "F81") 
+```
+
+Felsenstein 1981 modellen antar at basene har ulik sannsynlighet for å endres, og at endringene er uavhengige av hverandre.
+
+```{r}
+d.tn93 <- dist.dna(msa_to_DNAbin, model = "TN93")
+```
+
+Tamura og Nei (1995) modellen antar at basene har ulik sannsynlighet for å endres. 
+Begge typer transisjoner (A -> G, C -> T) og transversjoner (A -> C, G -> T) gir ulike endringer. 
+Basefrekvenser er ikke like, og estimeres fra dataene. 
+
+## 4.3 Neighbour-joining tre 
+
+**Bruk funksjonen bionj() til å lage et neighbor joining tre for hvert av de fire avstands-objektene du fik over. Bruk den generiske funksjonen plot() til å plotte de fire trærne.** 
+
+```{r}
+par(mfrow = c(2,2), mar = c(1,1,1,1))
+
+tre.raw <- bionj(d.raw) 
+plot(tre.raw, main = "Raw")
+
+tre.jc <- bionj(d.jc)
+plot(tre.jc, main = "Jukes-Cantor")
+
+tre.f81 <- bionj(d.f81)
+plot(tre.f81, main = "Felsenstein 1981")
+
+tre.tn93 <- bionj(d.tn93)
+plot(tre.tn93, main = "Tamura og Nei 1995")
+```
+
+**Primatene kan, utfra sine navn, deles inn i fire grupper. Hvordan harmonerer kladene i trærne med dette? Er det noen effekt av hvilken evolusjonær avstand du brukte?** 
+
+Kladene i trærne harmonerer med de fire gruppene primater. 
+Vi ser at de fire gruppene er delt inn i fire kladegrupper i alle trærne. 
+Trærne er nesten identiske, eneste forskjellen er at raw-modellen har byttet om på de to øverste gruppene.
+
+**Se bort fra neandertalerne og finn den siste forgreningen i treet som leder ned European human. Hvilken av apene har vi sist hatt et felles opphave med? Blir det forskjell på svaret dersom du bruker ulike evolusjonære modeller?** 
+
+European human hadde sist kontakt med Puti Orangutan og Jari Orangutan. 
+Det er ingen forskjell i svaret dersom vi bruker ulike evolusjonære modeller. 
+
+# 5 R-lab 
+
+## 5.2 Samle data fra mange filer
+
+### 5.2.1 Få tak i alle filnavn 
+
+```{r}
+filnavn <- list.files(path = "data", # endre til din sti
+                      pattern = "_OTU_msa.fasta") 
+filnavn
+```
+
+### 5.2.2 Lese filene og lagre innholdet
+
+```{r}
+for(i in 1:length(filnavn)){
+  cat("Leser fila:", filnavn[i], "\n")
+  sekvens.tbl <- readFasta(file.path("data", filnavn[i]))}
+```
+
+### 5.2.3 Legge til rader i en tabell
+
+```{r}
+filnavn <- list.files(path = "data", pattern = "_OTU_msa.fasta")
+sekvens.tbl <- NULL
+for(i in 1:length(filnavn)){
+  sekvens.tbl <- bind_rows(sekvens.tbl, readFasta(file.path("data", filnavn[i])))
+}
+```
+
+## 5.3 Vi leker med løkker 
+
+### 5.3.1 Definisjoner 
+
+```{r, eval = F}
+for(loop.objekt in vektor){
+  
+}
+```
+
+### 5.3.2 Antall runder - løkke-vektoren 
+
+Følgende sannhet gjelder alltid:
+
+*Ei løkke går like mange runder som det er elementer i løkke-vektoren.* 
+
+```{r}
+for(v in 1:5){
+  cat("Hei\n")
+}
+```
+
+```{r}
+vek <- rep(2.5, times = 7)
+for(OlaConny in vek){
+  cat("Hei\n")
+}
+```
+
+```{r}
+w <- c("The","power","of","looping")
+for(i in w){
+  cat("Hei\n")
+}
+```
+
+### 5.3.3 Løkkeobjektet 
+
+Følgende sannhet gjelder alltid:
+
+*Løkke-objektet får verdiene til løkke-vektoren etter tur* 
+
+```{r}
+for(v in 1:5){
+  cat("Løkke-objektet inneholder nå:", v, "\n")
+}
+```
+
+```{r}
+vek <- rep(2.5, times = 7)
+for(OlaConny in vek){
+  cat("Løkke-objektet inneholder nå:", OlaConny, "\n")
+}
+```
+
+```{r}
+w <- c("The","power","of","looping")
+for(i in w){
+  cat("Løkke-objektet inneholder nå:", i, "\n")
+}
+```
+
+Løkke-vektoren fyller altså to funksjoner:
+
+- Dens lengde bestemmer antall runder i løkka 
+- Dens innhold bestemmer innholdet til løkke-objektet i hver runde
+
+### 5.3.5 Oppgave  
+
+**Endre koden slik at du bruker ei løkke for å gjøre hele jobben for hver av filene, dvs både lese inn, beregne avstander og finne antall grupper. Hvis du vil ha en ekstra utfordring bruker du doble løkker, der du også gjennomløper de 3 avstands-verdiene (0.01, 0.03 og 0.05) vi brukte.** 
+
+```{r}
+filnavn <- list.files(path = "data", pattern = "_OTU_msa.fasta", full.names = TRUE)
+
+cut_heights <- c(0.01, 0.03, 0.05)
+
+results_list <- list()
+
+for (fil in filnavn){ 
+  sekvens <- read.dna(file = fil, format = 'fasta')
+  avstand <- dist.dna(sekvens, model = 'raw')
+  dendrogram <- hclust(avstand, method = "complete")
+    
+  for (h in cut_heights){ 
+    klader <- cutree(dendrogram, h = h)
+      
+    results_list <- c(results_list, list(data.frame(
+      file = fil,
+      height = h,
+      groups = length(unique(klader))
+    )))
+  }
+}
+
+# Kombiner alle resultatene til én data frame
+results.df <- bind_rows(results_list)
+
+# Skriv ut de første radene for å sjekke resultatene
+print(head(results.df))
+
+```
+
+
+
+

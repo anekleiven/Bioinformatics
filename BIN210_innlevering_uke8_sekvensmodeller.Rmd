@@ -1,0 +1,309 @@
+---
+title: 'BIN210 innlevering uke 8: Sekvensmodeller'
+author: "Par-gruppe 55: Katrine Weilin Fredheim & Ane Kleiven"
+date: "2025-03-26"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+# Last inn nødvendige R-pakker 
+
+```{r}
+library(stringr)
+library(tidyverse)
+library(microseq)
+library(ggplot2)
+```
+
+
+# 1 Bruk av Artificial Intelligence (AI) 
+
+Chat-GPT-4-turbo er brukt til å assistere med koding underveis i oppgaven, spesielt for feilsøking ved error. 
+I siste oppgave ble Chat-GPT brukt for å finne funksjonen `map_int()`, for å telle opp antall treff i listen. AI ble også brukt for å endre farger på stolpediagrammet. 
+
+Github Copilot har vært på underveis, og har kommet med forslag til kode. 
+
+# 2 Regulære uttrykk 
+
+```{r, eval=FALSE}
+# et regulært uttrykk 
+CTHLGC 
+```
+
+```{r, eval=FALSE}
+# uttrykket modifisert første gang 
+CTH[LF]GC
+```
+
+**Hvor mange unike sekvenser kan matche dette?** 
+
+2 unike sekvenser kan matche dette, CTHLGC og CTHFGC. 
+
+```{r, eval=FALSE}
+C[^ARNDCQEGHILKMNFWYV]H[LFI]GC
+```
+
+**Hvor mange unike sekvenser kan matche nå? Kan du formulere en regel for hvordan vi regner ut dette?**
+
+Aminosyrer nummer 2 må være enten Serin, Threonin eller Prolin (alle de andre er ekskludert i parentesen). 
+Aminosyre nummer 4 må være enten Leusin, Fenylalanin eller Isoleusin. 
+
+Dette gir 3 * 3 = 9 unike sekvenser, siden vi har 3 muligheter for aminosyre nummer 2 og 3 muligheter for aminosyre nummer 4. 
+
+En generell regel: 
+Antall unike sekvenser = antall muligheter for aminosyre 1 * antall muligheter for aminosyre 2 * antall muligheter for aminosyre 3 * ... * antall muligheter for aminosyre n.
+
+Antall unike sekvenser er produktet av mulige aminosyrer i hver posisjon. 
+
+**Lag korteste mulige regulære uttrykk slik at følgende sekvens gir treff:** 
+
+```{r, eval = FALSE}
+TGCTTTT
+```
+
+```{r, eval = FALSE}
+TGCT{4}
+```
+
+**Bruk det regulære uttrykket fra over. Finn hvor mange treff det gir i følgende sekvens:** 
+
+```{r, eval = FALSE}
+ATCTGCTTTTACCAAATGCTTTTGCTTTT
+```
+
+```{r}
+str_extract_all("ATCTGCTTTTACCAAATGCTTTTGCTTTT", "(TGCT{4})")[[1]]
+```
+Søket gir to treff av TGCTTTTT, men hvis vi ser på sekvensen er det i realiteten tre tilfeller av uttrykket - bare at tilfelle nummer to og tre overlapper. 
+
+# 3 Shine-Dalgarno: En myte?
+
+```{r}
+SD.pattern <- "AGGAGG"
+SD.tbl <- readFasta("data/ecoli_upstream.fasta.txt") |>
+  mutate(Has.SD = str_detect(Sequence, SD.pattern))
+cat("Fant mønsteret i", sum(SD.tbl$Has.SD), "av totalt",
+    nrow(SD.tbl), "sekvenser\n")
+```
+**Hvor mange av oppstrøms-sekvensene inneholder motivet "AGGAGG"?**
+
+112 av 4146 oppstrøms-sekvenser inneholder motivet "AGGAGG". 
+
+```{r}
+SD.pattern.2 <- "[AG][AG][AG][AG][AG][AG]"
+SD.tbl.2 <- readFasta("data/ecoli_upstream.fasta.txt") |>
+  mutate(Has.SD = str_detect(Sequence, SD.pattern.2))
+cat("Fant mønsteret i", sum(SD.tbl.2$Has.SD), "av totalt",
+    nrow(SD.tbl.2), "sekvenser\n")
+
+```
+
+**Hvor mange flere treff får du hvis du legger inn denne ‘romsligheten?** 
+
+I den nye mønsteret får jeg 2162 treff, altså 2060 flere treff enn med det første mønsteret. 
+
+**Lag en liten tabell der den ene kolonnen angir mønsteret du brukte (innkludert "AGGAGG") og i andre kolonne antall treff det ga.** 
+
+```{r}
+data.frame(Pattern = c("AGGAGG", "[AG][AG][AG][AG][AG][AG]"), 
+           Positives = c(sum(SD.tbl$Has.SD), sum(SD.tbl.2$Has.SD)))
+```
+
+*Til slutt en frivillig nøtt: La oss vende tilbake til det opprinnelige motivet "AGGAGG". Tenk deg at vi søkte med dette mot 4146 helt tilfeldig genererte sekvenser av lengde 25, altså sekvenser der alle 4 basene er trukket tilfeldig og med lik sannsynlighet (E. coli har GC-innhold på 50%). Hvor mange treff ville vi da forvente å få? På bakgrunn av dette, er Shine-Dalgarno sekvensen en myte? Hint: Tenk binomisk variabel.* 
+
+Sannsynlighet for A = 0.25
+Sannsynlighet for G = 0.25 
+Sannsynlighet for C = 0.25 
+Sannsynlighet for T = 0.25 
+
+Sannsynlighet for AGGAGG = p = (1/4)^6 = 1/4096 
+
+En sekvens på 20 baser kan begynne på 20 ulike steder. 
+
+Totalt antall mulige plasseringer for sekvensen = n = 20 * 4146 = 82920 
+
+Forventet antall treff = n * p = 82920 * 1/4096 = 20 
+
+Ved beregning forventer vi ikke mer enn 20 Shine Dalgarno sekvenser, dette viser at sekvensen ikke oppstår ved tilfeldighet. 
+
+# 4 PSSM 
+
+```{r, eval = FALSE}
+A  -2 -1 -2 -2 0
+C   1 -1 -2 -2 0
+G  -2 -3  1 -2 0
+T  -2  1 -2  1 0
+```
+
+**Hva er den maksimale score en sekvens kan oppnå med denne, og hvilken sekvens oppnår dette?**
+
+4 er den maksimale score en sekvens kan oppnå. Sekvensen som oppnår dette er CTGT[ACGT] 
+
+**Hva er nest høyeste score? Hvilken sekvens oppnår dette?**
+
+Den nest høyeste scoren er 2, og sekvensen som oppnår dette er C[AC]GT[ACGT] 
+
+**Hva er forventet score for en tilfeldig sekvens der alle de fire basene forekommer med samme sannsynlighet?**
+
+Forventet score posisjon 1 = 0.25 * (-2) + 0.25 * 1 + 0.25 * (-2) + 0.25 * (-2) = -1.25 
+Forventet score posisjon 2 = 0.25 * (-1) + 0.25 * (-1) + 0.25 * (-3) + 0.25 * 1 = -1
+Forventet score posisjon 3 = 0.25 * (-2) + 0.25 * (-2) + 0.25 * 1 + 0.25 * (-2) = -1.25 
+Forventet score posisjon 4 = 0.25 * (-2) + 0.25 * (-2) + 0.25 * (-2) + 0.25 * 1 = -1.25 
+
+Forventet score = -1.25 - 1 - 1.25 - 1.25 = -4.75 
+
+**Hva er rart med denne modellen? Hvis noen foreslår en slik PSSM, så bør du komme med et kritisk innspill. Hvorfor?**
+
+Alle verdier i posisjon 5 er 0, noe som betyr at det ikke spiller noen rolle hvilken base som er i posisjon 5. Dette er rart, fordi det er ingen grunn til at alle basene skal ha samme score i posisjon 5. Sannsynligvis vil en base være mer biologisk relevant enn en annen i en gitt posisjon. 
+
+I tillegg er det ganske høye straffer for å ha en base som ikke er forventet i en gitt posisjon. 
+
+# 5 Søk med PSI-BLAST
+
+## 5.1 BLAST-søk mot PDB-proteiner 
+
+Vi har følgende proteinsekvens: 
+
+```{r, eval = FALSE}
+MSSIGQSILMALTVTVNKYASLNVQAVHRREAKTPKTTGAKAKAAAAFQDIGRRGLLLSSVVAAPQVNND DSKTQLLQKYLKKSEENKAKNDKERMDSYYKRNYKDYFDFIEGSLKGKSEQELSESEKGILEWLKTNK
+```
+
+**Kjør søket som beskrevet over. Hvor mange treff får din sekvens hos PDB-proteinene?** 
+
+Søket gir ingen signifikante treff. 
+
+## 5.2 Vi lager en PSSM med PSI-BLAST 
+
+**Hvor mange treff får du i dette søket? Hvorfor ble det flere treff enn i forrige søk?** 
+
+Det nye søket ga 500+ treff (antall sekvenser satt til 500). 
+
+PDB-databasen inneholder kun proteiner med kjente strukturer, og er derfor en relativt liten og spesialisert database. Dersom sekvensen ikke har en nær strukturell homolog, vil den ikke gi treff i PDB. 
+
+nr-databasen (non-redundant protein sequence database) er en større database, som inneholder sekvensdata fra mange flere proteiner - inkludert teoretisk predikerte proteiner. Dette gjør at det er større sannsynlighet for at en sekvens vil gi treff i nr enn i PDB. 
+
+I det første søket brukte vi blastp, som gjør et enkelt sekvenssøk mot databasen, og kun finner proteiner med høy sekvenslikhet. 
+I det andre søket brukte vi PSI-blast, som bruker en iterativ søkemetode. 
+Første søk finner sekvenser som er nært beslektede. Deretter bygges en PSSM (posisjons-spesifikk vektingsmatrise), som brukes til å finne mer fjerne homologer i de neste iterasjonene.
+
+Valg av database og bruk av PSI-blast gjør at vi får flere treff i det andre søket enn i det første. 
+
+## 5.3 Kjør nytt søk mot PDB 
+
+**Hvor mange treff får du nå? Skriv noen ord om hva som utgjør forskjellen i det første og siste søket. Prøv å følge lenker fra beste treff til PDB og et bilde av protein-strukturen. Legg dette inn i rapporten.** 
+
+Det nye søket ga 2 signifikante treff. 
+I det første søket gjorde vi kun et enkelt blastp søk mot PDB, og fikk ingen treff. blastp søker eksakte eller nesten eksakte treff mellom query-sekvensen og sekvensene i databasen. 
+
+I det andre søket brukte vi PSI-blast, med en ferdig PSSM. PSSM'en gir hver posisjon i sekvensen ulike scoringsverdier, basert på hvor ofte en gitt aminosyre forekommer i den posisjonen i en gruppe av sekvenser. Dette gjør at vi kan finne mer fjerne homologer enn med et enkelt blastp-søk. 
+PSSM vekter konserverte posisjoner sterkere, og varierende posisjoner svakere, og er derfor en mer sensitiv metode enn blastp. 
+
+Under er et bilde av PDB-strukturen. Proteinet som ble funnet er 5ZJI - 'Chain N, Photosystem I reaction center subunit N'. 
+
+```{r}
+knitr::include_graphics('data/proteinstructure_5ZJI_N.png')
+```
+
+# 6 R-lab 
+
+## 6.1 Regulære uttrykk i R 
+
+```{r}
+# lær mer om regulære uttrykk i R 
+?regex
+```
+
+## 6.2 Søking med regulære uttrykk - `str_detect()` og `str_which()`
+
+```{r}
+sekvenser <- c("ATGCCTACGTTCGACT",
+               "GTGCCTGCAATCG",
+               "ATGCCTGCCCACAAACTG")
+har.treff <- str_detect(sekvenser, "CCT")
+print(har.treff)
+```
+
+```{r}
+index.treff <- str_which(sekvenser, "CCT")
+print(index.treff)
+```
+
+```{r}
+har.treff <- str_detect(sekvenser, 'AA') 
+har.treff
+```
+
+```{r}
+index.treff <- str_which(sekvenser, 'AA') 
+index.treff
+```
+
+```{r}
+har.treff <- str_detect(sekvenser, "CC")
+print(har.treff)
+```
+
+## 6.3 Søking med `str_locate_all()`
+
+```{r}
+sekvens <- "CCTGCTTAACTGCTTGGCCCTACCTCACCGTCCACTGCCCTGGGGTCCCAAAAATCGTCGTCACAC"
+treff.lst <- str_locate_all(sekvens, "CC")
+print(treff.lst)
+```
+
+## 6.4 Lister i R 
+
+```{r}
+M <- treff.lst[[1]]
+M
+```
+
+```{r}
+sekvens.vektor <- c("CCTGCTTAACTGCTTGGCCCTACCTCACCGTCCACTGCCCTGGGGTCCCAAC",
+                    "ATGCTGCCTGTA")
+treff.lst <- str_locate_all(sekvens.vektor, "CC")
+print(treff.lst)
+```
+
+## 6.5 Oppgave: Shine-Dalgarno igjen 
+
+```{r}
+# definerer motivet 
+SD.motiv <- '[AG]{4,6}' 
+
+# leter etter motivet i sekvensene 
+SD.treff <- str_locate_all(SD.tbl$Sequence, SD.motiv)
+
+# summerer antall treff i hver sekvens
+SD.antall <- map_int(SD.treff, nrow)
+
+# lag en frekvenstabell over antall treff 
+SD.frekvens <- table(SD.antall) |> 
+  as.data.frame() |> 
+  rename(Forekomster = SD.antall, Antall_sekvenser = Freq) 
+
+SD.frekvens 
+
+```
+
+```{r}
+# plot frekvenstabellen som et stolpediagram 
+
+ggplot(SD.frekvens, aes(x = Forekomster, y = Antall_sekvenser, fill = Forekomster)) + 
+  geom_col() + 
+  labs(x = 'Antall forekomster', y = 'Antall sekvenser', title = 'Forekomster av Shine Dalgarno') + 
+  scale_fill_manual(values = c('#631d36', '#961542', '#ba4a72', '#e68cab', '#e8ccd6'))
+```
+
+
+
