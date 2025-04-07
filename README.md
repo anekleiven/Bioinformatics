@@ -32,6 +32,14 @@ This repository contains coursework for the BIN210 bioinformatics course at NMBU
   - `MSA_analysis.html`: HTML report for week 7.
   - `MSA_analysis.Rmd`: R Markdown file for week 7.
   - `MSA_analysis_files/`: Supporting files for week 7.
+ 
+- **Uke_8_sekvensmodeller/**
+  - `BIN210_innlevering_uke8_sekvensmodeller.html`: HTML report for week 8 
+  - `BIN210_innlevering_uke8_sekvensmodeller.Rmd`: R markdown file for week 8
+
+- **Uke_9_fylogeni/**
+  - `innlevering_uke9_fylogeni.html`: HTML report for week 9 
+  - `innlevering_uke9_fylogeni.Rmd`: R markdown file for week 9 
 
 ## 🛠️ How to Use
 
