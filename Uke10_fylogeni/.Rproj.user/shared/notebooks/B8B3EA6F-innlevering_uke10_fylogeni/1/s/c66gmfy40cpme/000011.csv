@@ -1,3 +1,0 @@
-"0","p.distanser.tularensis <- as.dist(p.matrise.tularensis)"
-"0","hist(p.distanser.tularensis, col = ""coral"", main = ""tularensis-avstander"","
-"0","     xlab = ""p-distanse verdi"", ylab = ""Antall p-distanser"")"

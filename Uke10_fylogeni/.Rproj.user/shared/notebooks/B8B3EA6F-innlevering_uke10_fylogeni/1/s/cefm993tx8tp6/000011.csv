@@ -1,4 +1,0 @@
-"0","ape::write.fasta(msa_to_DNAbin, file = ""primates_muscle.msa"") 
-"
-"2","Error: 'write.fasta' is not an exported object from 'namespace:ape'
-"

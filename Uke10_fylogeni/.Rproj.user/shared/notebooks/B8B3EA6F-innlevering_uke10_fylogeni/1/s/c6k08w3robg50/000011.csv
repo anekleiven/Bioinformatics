@@ -1,5 +1,0 @@
-"0","parsimony.score <- parsimony(nj.JC69, primates.pdt)
-"
-"2","Error in UseMethod(""is.binary"") : 
-  no applicable method for 'is.binary' applied to an object of class ""list""
-"

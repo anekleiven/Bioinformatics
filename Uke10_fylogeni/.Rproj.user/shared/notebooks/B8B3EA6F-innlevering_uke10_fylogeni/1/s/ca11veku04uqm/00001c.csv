@@ -1,5 +1,0 @@
-"0","mitt.gg.tre <- ggtree(tre.nj, layout = ""rect"") +"
-"0","  geom_tiplab(size = 4) +"
-"0","  geom_treescale(width = 0.10) +"
-"0","  ggplot2::xlim(0, 0.4)"
-"0","print(mitt.gg.tre)"

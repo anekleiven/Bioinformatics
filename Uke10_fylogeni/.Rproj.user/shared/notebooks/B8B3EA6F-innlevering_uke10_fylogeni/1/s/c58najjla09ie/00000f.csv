@@ -1,7 +1,0 @@
-"0","data.tbl <- readFasta(""primates_muscle.msa"") %>% "
-"0","  mutate(Type = case_when("
-"0","    str_detect(Header, ""Gorilla"") ~ ""Gorilla"","
-"0","    str_detect(Header, ""Orangutan"") ~ ""Orangutan"","
-"0","    str_detect(Header, ""Chimp"") ~ ""Chimpanzee"","
-"0","    .default = ""Human"""
-"0","  ))"

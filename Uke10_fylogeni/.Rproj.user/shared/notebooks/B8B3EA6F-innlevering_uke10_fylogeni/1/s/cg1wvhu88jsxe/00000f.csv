@@ -1,3 +1,0 @@
-"0","msa <- read.dna(""primates_muscle.msa"", format = ""fasta"")"
-"0","d.JC69 <- dist.dna(msa, model = ""JC69"")"
-"0","tre.nj <- bionj(d.JC69)"
