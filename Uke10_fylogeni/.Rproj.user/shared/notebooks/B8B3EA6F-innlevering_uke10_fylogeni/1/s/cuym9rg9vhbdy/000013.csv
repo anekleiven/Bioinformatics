@@ -1,0 +1,2 @@
+"0","data <- read.dna(""data/samle_fil_16S_msa.fasta.txt"", format = ""fasta"")"
+"0","p.distanser <- dist.dna(data, model = ""raw"")"

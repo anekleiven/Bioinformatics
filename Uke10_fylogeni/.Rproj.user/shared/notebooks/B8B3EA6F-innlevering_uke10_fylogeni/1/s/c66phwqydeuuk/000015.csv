@@ -1,0 +1,7 @@
+"0","mitt.gg.tree <- ggtree(tre.nj) %<+% data.tbl +"
+"0","  geom_tiplab(hjust = -0.05, aes(color = Type)) +"
+"0","  geom_tippoint(aes(color = Type), size = 5) +"
+"0","  geom_treescale(width = 0.10) +"
+"0","  theme(legend.position = ""right"") +"
+"0","  ggplot2::xlim(0, 0.35)"
+"0","mitt.gg.tree"
