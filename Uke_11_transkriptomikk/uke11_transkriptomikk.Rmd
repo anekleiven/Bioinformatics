@@ -1,0 +1,823 @@
+---
+title: 'Øving uke 11: Transkriptomikk'
+author: "Par-gruppe 55: Katrine Weilin Fredheim & Ane Kleiven"
+date: "2025-04-22"
+output: 
+  html_document: 
+   number_sections: false
+   fig.caption: true  
+   toc: true 
+   toc_float: true
+   code_download: true
+   theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Bruk av Artificial Intelligence 
+
+Chat-GPT versjon GPT-4-turbo er brukt til noe generering av kode gjennom hele oppgaven, spesielt for feilsøking ved error. 
+
+Github-Copilot var på under hele øvingen, og har vært til hjelp i generering av kode og noe tekst.
+Copilot var spesielt behjelpelig ved repetetive koder i 2.3. 
+
+# Last inn aktuelle R-pakker 
+
+```{r}
+library(tidyverse) 
+library(ggplot2)
+library(readr) 
+library(microseq)
+library(cluster)
+library(matrixStats)
+```
+
+
+
+# 2 RNA-Seq data - fra eksperiment til 3 tabeller 
+
+## 2.1 Tabell over prøvene
+
+```{r}
+# les inn filen 'sample_data.tsv' i R
+sample.data <- read_tsv('data/RNASeq/RNASeq/sample_data.tsv') 
+```
+
+**Rapporter hvor mange read-par ble sekvensert i disse prøvene, minste, største og median verdi.**
+
+```{r}
+num.readpar <- sum(sample.data$readpairs) 
+cat('Antall read-par sekvensert:', num.readpar, '\n')
+```
+
+```{r}
+cat('Minste verdi:', min(sample.data$readpairs), '\n')
+```
+```{r}
+cat('Største verdi:', max(sample.data$readpairs), '\n')
+```
+```{r}
+cat('Median verdi:', median(sample.data$readpairs), '\n')
+```
+
+**Lag en liten tabell som viser antall prøver vi har for hver kombinasjon av kategoriene under genotype og treatment.** 
+
+```{r}
+type.table <- sample.data |> 
+  group_by(genotype, treatment) |>
+  summarise(n = n()) |> 
+  ungroup() |>
+  arrange(genotype, treatment)
+
+type.table
+```
+
+## 2.2 Tabell over genene
+
+**Les inn GFF-filen. Filtrer så du kun beholder radene som beskriver kodende gener (Type er lik "CDS").**
+
+```{r}
+# les inn GFF-filen 
+staphylococcus_haemolyticus <- readGFF('data/RNASeq/RNASeq/Staphylococcus_haemolyticus.gff') 
+
+# filtrer så vi kun beholder Type == 'CDS' 
+staphylococcus_haemo_filtered <- staphylococcus_haemolyticus |> 
+  filter(Type == 'CDS')
+
+# sjekk at filtreringen var suksess 
+head(staphylococcus_haemo_filtered)
+```
+
+**Lag en ny kolonne gene_id ved å trekke ut tekstene som matcher det regulære uttrykket "Name=.+?;". Fjern deretter "Name=" og ";" slik at du står igjen med tekster av typen "WP_016930931.1" eller liknende. Hvor mange kodende gener har vi? Lag et histogram over lengden til disse.** 
+
+```{r}
+# lag ny kolonne gene_id
+staphylococcus_haemo_filtered <- staphylococcus_haemo_filtered |> 
+  mutate(gene_id = str_extract(Attributes, "Name=.+?;")) |> 
+  mutate(gene_id = str_remove(gene_id, "Name=")) |> 
+  mutate(gene_id = str_remove(gene_id, ";"))
+
+head(staphylococcus_haemo_filtered)
+```
+
+```{r}
+# finn antall kodende gener 
+num.genes <- nrow(staphylococcus_haemo_filtered)
+
+cat('Antall kodende gener:', num.genes, '\n')
+```
+
+```{r}
+# lag histogram over lengden til kodende gener 
+staphylococcus_haemo_filtered <- staphylococcus_haemo_filtered |> 
+  mutate(length = End - Start) 
+
+ggplot(data = staphylococcus_haemo_filtered, mapping = aes(x = length)) + 
+geom_histogram(binwidth = 500, fill = "lightpink", color = "black") + 
+labs(title = "Histogram over lengden til kodende gener", x = "Lengde (bp)", y = "Antall gener") + 
+theme_minimal()
+
+```
+
+## 2.3 Tabell over gen-uttrykket
+
+**Les inn alle filene. Fra hver fil får du en tabell der kolonnen target_id angir hvilket gen som det er mappet til, og kolonnen tpm inneholder TPM-verdiene til genene i den respektive prøven. Inne i target_id tekstene finner du de samme tekstene som du brukte som gene_id over (f.eks. "WP_016930931.1"). Trekk denne ut i en egen kolonne som du kaller gene_id. Behold så kun de radene som har gene_id som også forekommer i gen-tabellen du laget over. Ta vare på kolonnene gene_id og tpm fra hver fil og lag den endelige data-tabellen der genene ligger i radene og der hver ny kolonne har TPM-verdiene fra de respektive prøvene. Bruk SampleID tekstene som kolonne-navn på kolonnene med TPM-verdier.** 
+
+```{r}
+# les inn første fil 
+A1 <- read_tsv('data/RNASeq/RNASeq/kallisto/A1.tsv')
+
+# trekk ut gene_id fra target_id 
+A1 <- A1 |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+"))
+
+# behold kun de radene som har gene_id som også forekommer i gen-tabellen 
+A1 <- A1 |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm)
+
+# bytt kolonnenavn fra tpm til sample navn 
+colnames(A1)[2] <- "A1" 
+
+```
+
+```{r}
+# les inn de andre filene og gjenta prosessen 
+A2 <- read_tsv('data/RNASeq/RNASeq/kallisto/A2.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(A2 = tpm)
+```
+
+```{r}
+A3 <- read_tsv('data/RNASeq/RNASeq/kallisto/A3.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(A3 = tpm)
+```
+
+```{r}
+A4 <- read_tsv('data/RNASeq/RNASeq/kallisto/A4.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(A4 = tpm)
+```
+
+```{r}
+B1 <- read_tsv('data/RNASeq/RNASeq/kallisto/B1.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(B1 = tpm)
+```
+
+```{r}
+B2 <- read_tsv('data/RNASeq/RNASeq/kallisto/B2.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(B2 = tpm)
+```
+
+```{r}
+B3 <- read_tsv('data/RNASeq/RNASeq/kallisto/B3.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(B3 = tpm)
+```
+
+```{r}
+B4 <- read_tsv('data/RNASeq/RNASeq/kallisto/B4.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(B4 = tpm)
+```
+
+```{r}
+C1 <- read_tsv('data/RNASeq/RNASeq/kallisto/C1.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(C1 = tpm)
+```
+
+```{r}
+C2 <- read_tsv('data/RNASeq/RNASeq/kallisto/C2.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(C2 = tpm)
+```
+
+```{r}
+C3 <- read_tsv('data/RNASeq/RNASeq/kallisto/C3.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(C3 = tpm)
+```
+
+```{r}
+C4 <- read_tsv('data/RNASeq/RNASeq/kallisto/C4.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(C4 = tpm)
+```
+
+```{r}
+D1 <- read_tsv('data/RNASeq/RNASeq/kallisto/D1.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(D1 = tpm)
+```
+
+```{r}
+D2 <- read_tsv('data/RNASeq/RNASeq/kallisto/D2.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(D2 = tpm)
+```
+
+```{r}
+D3 <- read_tsv('data/RNASeq/RNASeq/kallisto/D3.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(D3 = tpm)
+```
+
+```{r}
+D4 <- read_tsv('data/RNASeq/RNASeq/kallisto/D4.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(D4 = tpm)
+```
+
+```{r}
+E1 <- read_tsv('data/RNASeq/RNASeq/kallisto/E1.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(E1 = tpm)
+```
+
+```{r}
+E2 <- read_tsv('data/RNASeq/RNASeq/kallisto/E2.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(E2 = tpm)
+```
+
+```{r}
+E3 <- read_tsv('data/RNASeq/RNASeq/kallisto/E3.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(E3 = tpm)
+```
+
+```{r}
+E4 <- read_tsv('data/RNASeq/RNASeq/kallisto/E4.tsv') |> 
+  mutate(gene_id = str_extract(target_id, "WP_\\d+\\.\\d+")) |> 
+  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> 
+  select(gene_id, tpm) |> 
+  rename(E4 = tpm)
+```
+
+```{r}
+# bind alle tabellene sammen 
+data.table <- A1 |> 
+  full_join(A2) |> 
+  full_join(A3) |> 
+  full_join(A4) |> 
+  full_join(B1) |> 
+  full_join(B2) |> 
+  full_join(B3) |> 
+  full_join(B4) |> 
+  full_join(C1) |> 
+  full_join(C2) |> 
+  full_join(C3) |> 
+  full_join(C4) |> 
+  full_join(D1) |> 
+  full_join(D2) |> 
+  full_join(D3) |> 
+  full_join(D4) |> 
+  full_join(E1) |> 
+  full_join(E2) |> 
+  full_join(E3) |> 
+  full_join(E4)
+```
+
+## 2.4 Datamatrise 
+
+**Fra data-tabellen over, lag så den endelige data-matrisen som bare består av TPM-verdiene, med en rad for hver prøve og en kolonne for hvert gen, og med rad- og kolonne-navn som angir henholdsvis prøvene og genene.** 
+
+```{r}
+# lag datamatrise 
+matrix <- data.table |> 
+  column_to_rownames(var = "gene_id") |> 
+  t() |>
+  as.matrix()
+```
+
+**Finn de 10 mest uttrykte genene, og list disse i en tabell som angir hvilket gen og tilhørende gjennomsnittlige TPM-verdi. Fra gen-tabellen du laget over, kan du finne ut noe om hva slags gener dette er? ** 
+
+```{r}
+# finn de 10 mest uttrykte genene 
+top10 <- matrix |> 
+  colMeans() |> 
+  sort(decreasing = TRUE) |> 
+  head(10)
+
+top10
+```
+
+```{r}
+# lag tabell med gen og gjennomsnittlig TPM-verdi
+top10.table <- data.frame(tpm = top10) |> 
+  arrange(desc(tpm))
+
+top10.table
+```
+WP_037559308.1 = C1q-binding complement inhibitor VraX 
+WP_011274908.1 = hypothetical protein
+WP_049426256.1 = cold-shock protein
+WP_011276867.1 = 30S ribosomal protein S6 
+WP_011275571.1 = 50S ribosomal protein L21 
+WP_000240855.1 = 50S ribosomal protein L34 
+WP_037537864.1 = 50S ribosomal protein L19 
+WP_002433901.1 = cold shock protein CspA 
+WP_015900978.1 = 30S ribosomal protein S10 
+WP_011275926.1 = 30S ribosomal protein S15 
+
+Mange av disse genene er ribosomale proteiner, som er involvert i proteinsyntese. Disse kan være oppregulert ved stress, for å øke proteinsyntesen i cellen. 
+
+To av proteinene er kalt "cold shock protein", og er involvert i respons på lav temperatur og andre stressende forhold. De hjelper til med å stabilisere RNA og proteinstruktur under stress.  
+
+C1q-binding complement inhibitor VraX er involvert i å hemme komplementaktivering, og kan være viktig for bakterienes evne til å unngå immunrespons. Økt uttrykk av denne kan være en del av bakterienes tilpasning til stressende forhold, som for eksempel antibiotikabehandling.
+
+
+```{r}
+# lagre tabellene 
+save(type.table, staphylococcus_haemo_filtered, matrix, data.table, file = "data/RNASeq/RNASeq/uke11.RData")
+```
+
+# 3 Strålingsdata 
+
+## 3.1 PCA 
+
+**Reproduser PCA-plottet (det siste scatter-plottet) og ha det med i rapporten din.** 
+
+```{r}
+# last inn dataene 
+load(url("http://arken.nmbu.no/~larssn/teach/bin210/ovinger/data/radiation_small.RData")) 
+
+# sjekk at dataene er lastet inn 
+print(X[1:4,1:5])
+```
+
+```{r}
+# transpose dataene
+X.transp <- t(X)
+print(X.transp[,1:4])
+```
+```{r}
+# lag en tabell med to av genene og hvor mye de uttrykkes i hver prøve 
+X.transp[,1:2] %>% 
+  as_tibble(rownames = "Treatment") %>% 
+  separate(Treatment, into = c("Treatment", "Person"), sep = " ") -> tbl
+```
+
+```{r}
+# gjør PCA 
+pca <- prcomp(X.transp)
+```
+
+```{r}
+# lagre score-verdiene fra PCA inn i tabellen 
+tbl <- tbl %>%
+  mutate(PC1 = pca$x[,1]) %>% 
+  mutate(PC2 = pca$x[,2])
+```
+
+```{r}
+# lag plot av PCA 
+ggplot(data = tbl, aes(x = PC1, y = PC2)) + 
+  geom_point(aes(color = Treatment), size = 5) + 
+  geom_text(aes(label = Person), vjust = -1, size = 3) +
+  labs(title = "PCA av radiation data", x = "PC1", y = "PC2") + 
+  theme_minimal() + 
+  coord_fixed()
+```
+
+## 3.2 Hierarkisk clustering av prøvene 
+
+```{r}
+# last inn dataene 
+load(url("http://arken.nmbu.no/~larssn/teach/bin210/ovinger/data/radiation_small.RData"))
+```
+
+```{r}
+# transponer matrisen 
+X.transponert <- t(X)
+```
+
+```{r}
+# beregn euclidian distance mellom alle prøvene (radene) 
+d.euclid <- dist(X.transponert)
+```
+
+**Lag et histogram over disse for å se omtrent hvor store avstander vi får.** 
+
+```{r}
+hist(d.euclid, breaks = 15, main = "Histogram over euclidian distance", xlab = "Distance", ylab = "Frequency")
+```
+
+```{r}
+# gjennomfør hierarkisk clustering med average linkage
+dendrogram <- hclust(d.euclid, method = "average")
+plot(dendrogram, hang = -1, ylab = "Euklidsk avstand", main = "Average linkage")
+```
+
+```{r}
+# gjennomfør hierarkisk clustering med average linkage
+dendrogram <- hclust(d.euclid, method = "single")
+plot(dendrogram, hang = -1, ylab = "Euklidsk avstand", main = "Single linkage")
+```
+
+```{r}
+# gjennomfør hierarkisk clustering med average linkage
+dendrogram <- hclust(d.euclid, method = "complete")
+plot(dendrogram, hang = -1, ylab = "Euklidsk avstand", main = "Complete linkage")
+```
+
+
+**Hva tenker du at vi oppnår med å endre fra "average" til "complete" linkage? Kan du forklare hvorfor dette skjer?** 
+
+Når vi endrer fra "average" til "complete" linkage, endres måten avstandene mellom klusterne beregnes på. 
+Ved "average" linkage defineres avstanden mellom klynger som gjennomsnittet av alle parvise avstander mellom punktene i de to klyngene. Dette gir gjerne kompakte klynger og kan føre til at klyngene er mer like i størrelse og form. Dette ser vi fra det første dendrogrammet, der klyngene er mer kompakte og har mindre variasjon i avstandene mellom dem. Vi ser også at prøve nummer to er lagt i en egen klynge, som kan indikere at den er mer forskjellig fra de andre prøvene. Dette er akkurat det vi så i PCA-plottet, der prøve 2 også skiller seg ut. 
+
+Ved "complete" linkage defineres avstanden mellom klynger som den største avstanden mellom punktene i de to klyngene. Dette kan føre til at klyngene blir mer langstrakte og at de kan være mer forskjellige i størrelse og form. Dette ser vi fra det siste dendrogrammet, der klyngene er mer langstrakte og har større variasjon i avstandene mellom dem. Her ser vi at prøven som skilte seg ut, nr.2, er inkludert i klyngen med 'untreated' prøver, og at det er flere prøver som er mer ulike hverandre. 
+
+**Prøv også Ward’s metode ("ward.D"). Hva er dette?** 
+
+```{r}
+# gjennomfør hierarkisk clustering med average linkage
+dendrogram <- hclust(d.euclid, method = "ward.D")
+plot(dendrogram, hang = -1, ylab = "Euklidsk avstand", main = "Ward's metode")
+```
+
+Wards metode bruker en annen tilnærming for å beregne avstandene mellom klynger. I stedet for å bruke gjennomsnittet eller den største avstanden, prøver Ward's metode å minimere den totale variansen innenfor hver klynge (sums of squares). Dette betyr at den prøver å finne klynger som er så kompakte som mulig, og som har minst mulig variasjon i dataene. Dette kan føre til at klyngene blir mer homogene og at de er mer like i størrelse og form. 
+
+I dendrogrammet ser vi at klyngene er mer kompakte og at det er mindre variasjon i avstandene mellom dem. 
+
+## 3.3 Partisjonering av genene
+
+**Beregn euklidsk avstand mellom alle gener, og lagre i objektet d.euc. Hvor mange parvise avstander blir dette? Hva er en euklidsk avstand egentlig? Hva skal til for at to gener har en euklidsk avstand på (nesten) 0?** 
+
+```{r}
+d.euc <- dist(X) 
+str(d.euc)
+```
+Mellom alle gener er det 499500 parvise avstander. 
+
+Euklidisk avstand er avstanden mellom to punkter, og kan beregnes ved å bruke Pythagoras. I et todimensjonal rom er den euklidiske avstanden mellom to punkter (x1, y1) og (x2, y2) gitt ved formelen: 
+
+```{r, eval = F}
+d = sqrt((x2 - x1)^2 + (y2 - y1)^2)
+```
+
+For at en euklidisk avstand skal være nesten null, må punktene ha nesten identiske verdier. Dette betyr at de må ha lignende uttrykk i alle prøvene, og at de derfor er nært beslektet.
+
+```{r}
+d.corr <- as.dist((1-cor(t(X)))/2)
+```
+
+**Hva er en korrelasjonsavstand? Hva skal til for at to gener har en korrelasjons-avstand på (nesten) 0?**
+
+Korrelasjonsavstand er en avstand som er basert på korrelasjonen mellom to variabler. Den måler hvor nært to variabler er relatert til hverandre, og kan brukes til å vurdere likheten mellom dem. 
+Hvis to gener med perfekt korrelasjon, har korrelasjonsavstand på 0. 
+Korrelasjonsavstanden går fra 0 til 2, der 0 er perfekt korrelasjon og 2 er perfekt negativ korrelasjon (genene varierer helt motsatt av hverandre). 
+
+### 3.3.1 Partisjonering i 2 grupper 
+
+```{r}
+K <- 2
+clst <- pam(d.euc, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl <- X[clst$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+**Basert på denne figuren, hva vil du si at disse to clusterne representerer?**
+
+Clusterne representerer to forskjellige grupper av gener som har ulikt uttrykk i de forskjellige prøvene. Den ene gruppen (Cluster 1) har høyere uttrykk i de fleste prøvene, mens den andre gruppen (Cluster 2) har lavere uttrykk. Dette kan indikere at de to gruppene av gener er involvert i forskjellige biologiske prosesser eller respons på stråling.
+
+### 3.3.2 Partisjonering med økende K 
+
+#### K = 3 
+
+```{r}
+K <- 3
+clst2 <- pam(d.euc, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl2 <- X[clst2$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl2, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 4 
+
+```{r}
+K <- 4
+clst3 <- pam(d.euc, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl3 <- X[clst3$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl3, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 5 
+
+```{r}
+K <- 5
+clst4 <- pam(d.euc, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl4 <- X[clst4$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl4, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 6 
+
+```{r}
+K <- 6
+clst5 <- pam(d.euc, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl5 <- X[clst5$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl5, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+**Basert på medoidene, hva vil du si er det karakteristiske for genene i hver gruppe?** 
+
+Medoidene viser at genene i hver gruppe har forskjellige uttrykksmønstre. Genene i en gruppe har cirka likt uttrykk i de forskjellige prøvene. Dette kan indikere at genene i hver gruppe er involvert i forskjellige biologiske prosesser eller respons på stråling. 
+
+**Bytt fra euklidisk avstand til korrelasjonsavstander, og prøv verdier for K fra 2 til 6. Hva karakteriserer genene i hver gruppe? Hvordan skiller dette seg fra bruk av euklidsk avstand?** 
+
+#### K = 2 
+
+```{r}
+K <- 2
+clst_corr <- pam(d.corr, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl_corr <- X[clst_corr$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl_corr, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 3 
+
+```{r}
+K <- 3
+clst_corr2 <- pam(d.corr, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl_corr2 <- X[clst_corr2$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl_corr2, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 4 
+
+```{r}
+K <- 4
+clst_corr3 <- pam(d.corr, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl_corr3 <- X[clst_corr3$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl_corr3, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 5 
+
+```{r}
+K <- 5
+clst_corr4 <- pam(d.corr, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl_corr4 <- X[clst_corr4$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl_corr4, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+#### K = 6 
+
+```{r}
+K <- 6
+clst_corr5 <- pam(d.corr, k = K, nstart = 10)
+```
+
+```{r}
+medoide.tbl_corr5 <- X[clst_corr5$id.med,] |> 
+  t() |> 
+  as.data.frame()  |> 
+  rownames_to_column("Sample") |> 
+  pivot_longer(names_to = "Cluster", values_to = "Expression", -Sample)
+
+ggplot(medoide.tbl_corr5, aes(x = Sample, y = Expression, color = Cluster)) +
+  geom_point() +
+  geom_line(aes(group = Cluster)) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+**Hva karakteriserer genene i hver gruppe? Hvordan skiller dette seg fra bruk av euklidsk avstand?** 
+
+Vi ser på K=2 at den ene gruppen har høyt genuttrykk i strålingsprøvene, og lavt uttrykk i kontrollprøvene. Den andre gruppen har omvendt uttrykk, altså lavt uttrykk i strålingsprøvene og høyt uttrykk i kontrollprøvene. De varierer omvendt av hverandre, og har negativ korrelasjon. 
+Når vi legger til flere grupper er det vanskelig å se et tydelig mønster, men man kan se at de varierer i uttrykk i forhold til hverandre.
+
+Når vi bytter fra euklidisk avstand til korrelasjonsavstand, endres måten vi grupperer genene på. Korrelasjonsavstand fokuserer på hvordan genene varierer i forhold til hverandre, mens euklidisk avstand fokuserer på den absolutte avstanden mellom dem. Det vil si at mens euklidisk avstand fokuserer på forskjellen i genuttrykk, fokuserer korrelasjonsavstand på hvordan genene varierer i forhold til hverandre (fra prøve til prøve). 
+
+Euklidisk avstand fant alle gener med lignende genuttrykk for alle prøver, korrelasjonsavstand ser mer på hvordan uttrykket endrer seg fra prøve til prøve (syk til frisk, stråling til kontroll etc.) 
+
+**Hvor mange gener havner i de ulike gruppene?** 
+
+```{r}
+table(clst_corr$clustering)
+```
+
+Antallet gener varierer. Ved to grupper er det cirka 500 gener i hver gruppe, mens ved 6 grupper er det mellom 50 og 300 gener i hver gruppe. Totalen er alltid 1000 gener - alle genene i matrix X. 
+
+**Kan du finne en gen-gruppe som viser nettopp at person 2 avviker fra de andre?** 
+
+Vi ser på clst_corr5 (med 6 gengrupper) at gruppe 6 (den rosa) har avvikende uttrykk for prøve 2. Prøven med og uten stråling har svært høyt genuttrykk, noe som kan tilsi at denne pasienten har en annen respons på stråling enn de andre. Det kan være at denne pasienten er syk. 
+
+# R Lab  
+
+## 4.1 Tabeller 
+
+```{r}
+adr <- url("http://arken.nmbu.no/~larssn/teach/bin210/Rlab/data/radiation_small.txt")
+transkr.tbl <- read_delim(adr, delim = "\t")
+```
+
+## 4.2 Skal vi konvertere til matrise? 
+
+```{r}
+transkr.mat <- transkr.tbl |> 
+  column_to_rownames("Gene") |>   # omgjør kolonnen Gene til rad-navn
+  as.matrix()
+```
+
+```{r}
+ny.tbl <- transkr.mat |> 
+  as.data.frame() |> 
+  rownames_to_column("Gener")    # omgjør rad-navn til kolonnen Gener
+```
+
+## 4.3 Noen oppgaver 
+
+**Hva er de gjennomsnittlige ekspressjonsverdiene for alle genene og for alle prøvene? Finn også median, maksimum og minimum verdi for hvert gen og hver prøve.** 
+
+### For alle genene: 
+
+```{r}
+gen_stat <- data.frame(
+  Gjennomsnitt = rowMeans(as.matrix(transkr.mat)),
+  Median = rowMedians(as.matrix(transkr.mat)),
+  Maksimum = rowMaxs(as.matrix(transkr.mat)),
+  Minimum = rowMins(as.matrix(transkr.mat))
+)
+
+head(gen_stat)
+```
+
+### For alle prøvene: 
+
+```{r}
+sample_stat <- data.frame(
+  Gjennomsnitt = colMeans(as.matrix(transkr.mat)),
+  Median = colMedians(as.matrix(transkr.mat)),
+  Maksimum = colMaxs(as.matrix(transkr.mat)),
+  Minimum = colMins(as.matrix(transkr.mat))
+)
+  
+sample_stat
+```
+
+**Finn gjennomsnittlig ekspresjonsverdi for Radiated- og Untreated-prøver for hvert gen, og beregn differansen mellom dem.** 
+
+```{r}
+gen_stat_diff <- data.frame(
+  gjsnitt_radiated = rowMeans(transkr.mat[,1:10]),
+  gjsnitt_untreated = rowMeans(transkr.mat[,11:20]),
+  diff = rowMeans(transkr.mat[,1:10]) - rowMeans(transkr.mat[,11:20]))
+
+gen_stat_diff <- gen_stat_diff |> 
+  arrange(desc(diff))
+  
+head(gen_stat_diff)
+```
+
+**Sorter ekspresjonsmatrisa slik at de genene med størst differanse fra oppgaven over kommer først, og deretter i synkende rekkefølge.** 
+
+```{r}
+transkr.mat.sorted <- transkr.mat[order(gen_stat_diff$diff, decreasing = TRUE),]
+
+head(transkr.mat.sorted) 
+```
+Vi ser at genene som er øverst i gen_stat_diff også er øverst i transkr.mat.sorted. Dette er fordi vi har sortert matrisa etter differansen mellom gjennomsnittlig uttrykk i Radiated- og Untreated-prøver. Sorteringen var vellykket. 
+
+

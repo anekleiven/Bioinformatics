@@ -46,6 +46,11 @@ This repository contains coursework for the BIN210 bioinformatics course at NMBU
   - `innlevering_uke10_fylogeni.Rmd`: R markdown file for week 10 
   - `data/`folder: supporting files for week 10 
 
+- **Uke_11_genomikk/**
+  - `innlevering_uke11_genomikk.html`: HTML report for week 11
+  - `innlevering_uke11_genomikk.Rmd`: R markdown file for week 11
+  - `data/`folder: supporting files for week 11
+
 ## 🛠️ How to Use
 
 1. Navigate to the folder for the specific week you are interested in.
