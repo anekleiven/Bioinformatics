@@ -1,0 +1,3 @@
+"0","RPKM_tab <- full_join(RPKM_tab_A1, RPKM_tab_A2, by = ""target_id"") |> "
+"0","  full_join(RPKM_tab_A3, by = ""target_id"") |> "
+"0","  full_join(RPKM_tab_A4, by = ""target_id"") "

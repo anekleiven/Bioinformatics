@@ -1,0 +1,2 @@
+"0","# beregn euclidian distance mellom alle prøvene (radene) "
+"0","d.euclid <- dist(X.transponert)"

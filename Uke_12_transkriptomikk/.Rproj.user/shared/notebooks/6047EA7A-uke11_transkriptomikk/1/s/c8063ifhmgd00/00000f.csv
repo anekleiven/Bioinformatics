@@ -1,0 +1,2 @@
+"0","K <- 2"
+"0","clst_corr <- pam(d.corr, k = K, nstart = 10)"

@@ -1,0 +1,4 @@
+"0","# lagre score-verdiene fra PCA inn i tabellen "
+"0","tbl <- tbl %>%"
+"0","  mutate(PC1 = pca$x[,1]) %>% "
+"0","  mutate(PC2 = pca$x[,2])"

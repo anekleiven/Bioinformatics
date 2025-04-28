@@ -1,0 +1,8 @@
+"0","num.readpar <- sum(sample.data$readpairs) "
+"0","cat('Antall read-par sekvensert:', num.readpar, '\n')"
+"1","Antall read-par sekvensert:"
+"1"," "
+"1","216689061"
+"1"," "
+"1","
+"

@@ -1,0 +1,3 @@
+"0","K <- 4"
+"0","clst3 <- pam(d.euc, k = K, nstart = 10)"
+"0","View(X)"

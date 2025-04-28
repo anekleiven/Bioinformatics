@@ -1,0 +1,2 @@
+"0","# lagre tabellene "
+"0","save(type.table, staphylococcus_haemo_filtered, matrix, data.table, file = ""data/RNASeq/RNASeq/uke11.RData"")"

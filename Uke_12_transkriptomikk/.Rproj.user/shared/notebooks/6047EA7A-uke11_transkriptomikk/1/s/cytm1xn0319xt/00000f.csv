@@ -1,0 +1,4 @@
+"0","# lag en tabell med to av genene og hvor mye de uttrykkes i hver prøve "
+"0","X.transp[,1:2] %>% "
+"0","  as_tibble(rownames = ""Treatment"") %>% "
+"0","  separate(Treatment, into = c(""Treatment"", ""Person""), sep = "" "") -> tbl"

@@ -1,0 +1,2 @@
+"0","K <- 6"
+"0","clst5 <- pam(d.euc, k = K, nstart = 10)"

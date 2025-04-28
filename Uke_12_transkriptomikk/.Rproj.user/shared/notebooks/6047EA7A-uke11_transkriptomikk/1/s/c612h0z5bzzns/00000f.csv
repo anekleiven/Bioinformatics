@@ -1,0 +1,7 @@
+"0","type.table <- sample.data |> "
+"0","  group_by(genotype, treatment) |>"
+"0","  summarise(n = n()) |> "
+"0","  ungroup() |>"
+"0","  arrange(genotype, treatment)"
+"0",""
+"0","type.table"

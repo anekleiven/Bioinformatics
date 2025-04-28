@@ -1,0 +1,2 @@
+"0","# les inn filen 'sample_data.tsv' i R"
+"0","sample.data <- read_tsv('data/RNASeq/RNASeq/sample_data.tsv') "

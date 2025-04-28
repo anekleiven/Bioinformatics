@@ -1,0 +1,6 @@
+"0","# les inn de andre filene og gjenta prosessen "
+"0","A2 <- read_tsv('data/RNASeq/RNASeq/kallisto/A2.tsv') |> "
+"0","  mutate(gene_id = str_extract(target_id, ""WP_\\d+\\.\\d+"")) |> "
+"0","  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> "
+"0","  select(gene_id, tpm) |> "
+"0","  rename(A2 = tpm)"

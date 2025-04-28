@@ -1,0 +1,2 @@
+"0","# gjør PCA "
+"0","pca <- prcomp(X.transp)"

@@ -1,0 +1,2 @@
+"0","# Fjern gener med 0 uttrykk i alle prøver "
+"0","tpm.mat <- tpm.mat[,colSums(tpm.mat) > 0]"

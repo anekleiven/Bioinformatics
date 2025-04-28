@@ -1,0 +1,5 @@
+"0","B4 <- read_tsv('data/RNASeq/RNASeq/kallisto/B4.tsv') |> "
+"0","  mutate(gene_id = str_extract(target_id, ""WP_\\d+\\.\\d+"")) |> "
+"0","  filter(gene_id %in% staphylococcus_haemo_filtered$gene_id) |> "
+"0","  select(gene_id, tpm) |> "
+"0","  rename(B4 = tpm)"

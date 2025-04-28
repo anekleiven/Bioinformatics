@@ -1,0 +1,2 @@
+"0","# transponer matrisen "
+"0","X.transponert <- t(X)"

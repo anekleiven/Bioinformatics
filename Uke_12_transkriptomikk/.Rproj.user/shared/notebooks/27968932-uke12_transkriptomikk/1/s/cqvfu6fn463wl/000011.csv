@@ -1,0 +1,4 @@
+"0","# omvendt søk med regulært uttrykk i kolonnenavn"
+"0","idx <- str_which(colnames(X), ""2"", negate = TRUE)"
+"2","Error: object 'X' not found
+"

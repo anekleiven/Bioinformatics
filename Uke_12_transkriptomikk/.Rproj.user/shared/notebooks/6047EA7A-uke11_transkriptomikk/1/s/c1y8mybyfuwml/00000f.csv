@@ -1,0 +1,3 @@
+"0","# gjennomfør hierarkisk clustering med average linkage"
+"0","dendrogram <- hclust(d.euclid, method = ""complete"")"
+"0","plot(dendrogram, hang = -1, ylab = ""Euklidsk avstand"", main = ""Complete linkage"")"

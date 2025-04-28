@@ -1,0 +1,3 @@
+"0","TPM_tab <- data.table |> "
+"0","  mutate(target_id = gene_id, A1_tpm = A1, A2_tpm = A2, A3_tpm = A3, A4_tpm = A4) |>"
+"0","  select(c(target_id, A1_tpm, A2_tpm, A3_tpm, A4_tpm)) "

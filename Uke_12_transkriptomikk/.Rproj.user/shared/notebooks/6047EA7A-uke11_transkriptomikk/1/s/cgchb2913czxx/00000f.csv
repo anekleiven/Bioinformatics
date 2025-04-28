@@ -1,0 +1,1 @@
+"0","d.corr <- as.dist((1-cor(t(X)))/2)"

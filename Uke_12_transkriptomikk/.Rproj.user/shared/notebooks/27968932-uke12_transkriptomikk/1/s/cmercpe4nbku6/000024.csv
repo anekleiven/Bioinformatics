@@ -1,0 +1,8 @@
+"0","ggplot(data = data_long, aes(x = tpm, y = rpkm)) +"
+"0","  geom_point(alpha = 0.6) +"
+"0","  facet_wrap(~ sample) +"
+"0","  theme_minimal() + "
+"0","  labs(x = ""TPM"", y = ""RPKM"", title = ""TPM vs RPKM for each sample"") + "
+"0","  scale_x_continuous(limits = c(0, 10000)) +"
+"0","  scale_y_continuous(limits = c(0, 10000)) "
+"0",""

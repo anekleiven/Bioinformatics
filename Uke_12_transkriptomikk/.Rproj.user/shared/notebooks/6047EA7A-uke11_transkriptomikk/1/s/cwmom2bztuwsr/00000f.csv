@@ -1,0 +1,5 @@
+"0","# lag datamatrise "
+"0","matrix <- data.table |> "
+"0","  column_to_rownames(var = ""gene_id"") |> "
+"0","  t() |>"
+"0","  as.matrix()"

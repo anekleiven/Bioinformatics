@@ -1,0 +1,1 @@
+"0","hist(d.euclid, breaks = 15, main = ""Histogram over euclidian distance"", xlab = ""Distance"", ylab = ""Frequency"")"

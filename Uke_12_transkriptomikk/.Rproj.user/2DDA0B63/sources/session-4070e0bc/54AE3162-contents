@@ -1,0 +1,448 @@
+---
+title: 'Uke 12: Transkriptomikk'
+author: "Ane Kleiven"
+date: "2025-04-28"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## 1 Les inn aktuelle R-pakker 
+
+```{r}
+library(readr) 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+## 2 RPKM-verdier 
+
+**For de første fire prøvene (de med “A” i navnet), beregn RPKM-verdier for hvert gen, som et alternativ til TPM-verdiene. Lag en figur der du plotter TPM-verdi mot RPKM-verdi for hvert gen (som en prikk, geom_point()), og del dette i 4 paneler (facet_wrap()) etter de fire prøvene. Skriv noen ord om sammenhengene du ser. Er det som forventet?** 
+
+For å beregne RPKM-verdier for hvert gen i de fire første prøvene trenger vi følgende informasjon: 
+
+- Antall reads som er sekvensert for hvert gen 
+- Lengden på hvert gen (i bp) 
+- Totalt antall reads som er sekvensert i prøven 
+
+### Les inn tabellene for prøvene A1, A2, A3 og A4 
+
+```{r}
+# les inn tabellene for prøve A1, A2, A3 og A4 
+A1_tab <- read_tsv('C:/Users/anekl/OneDrive - Norwegian University of Life Sciences/BIN210/Uke11_transkriptomikk/data/RNASeq/RNASeq/kallisto/A1.tsv')
+
+A2_tab <- read_tsv('C:/Users/anekl/OneDrive - Norwegian University of Life Sciences/BIN210/Uke11_transkriptomikk/data/RNASeq/RNASeq/kallisto/A2.tsv') 
+
+A3_tab <- read_tsv('C:/Users/anekl/OneDrive - Norwegian University of Life Sciences/BIN210/Uke11_transkriptomikk/data/RNASeq/RNASeq/kallisto/A3.tsv')
+
+A4_tab <- read_tsv('C:/Users/anekl/OneDrive - Norwegian University of Life Sciences/BIN210/Uke11_transkriptomikk/data/RNASeq/RNASeq/kallisto/A4.tsv')
+
+```
+
+### Lag en tabell med antall reads og lengde for hvert gen 
+
+```{r}
+A1_tab <- A1_tab |> 
+  mutate(target_id = str_extract(target_id, "WP_[0-9]+\\.[0-9]+")) |> 
+  select(target_id, length, est_counts) 
+
+A2_tab <- A2_tab |>
+  mutate(target_id = str_extract(target_id, "WP_[0-9]+\\.[0-9]+")) |> 
+  select(target_id, length, est_counts)
+
+A3_tab <- A3_tab |>
+  mutate(target_id = str_extract(target_id, "WP_[0-9]+\\.[0-9]+")) |> 
+  select(target_id, length, est_counts)
+
+A4_tab <- A4_tab |>
+  mutate(target_id = str_extract(target_id, "WP_[0-9]+\\.[0-9]+")) |> 
+  select(target_id, length, est_counts)
+
+```
+
+### Beregn RPKM-verdiene for hvert gen i de fire prøvene 
+
+```{r}
+RPKM_tab_A1 <- A1_tab |> 
+  mutate(A1_rpkm = (est_counts * 10^9) / (length * sum(est_counts))) |> 
+  select(target_id, A1_rpkm)
+
+RPKM_tab_A2 <- A2_tab |> 
+  mutate(A2_rpkm = (est_counts * 10^9) / (length * sum(est_counts))) |> 
+  select(target_id, A2_rpkm)
+
+RPKM_tab_A3 <- A3_tab |>
+  mutate(A3_rpkm = (est_counts * 10^9) / (length * sum(est_counts))) |> 
+  select(target_id, A3_rpkm)
+
+RPKM_tab_A4 <- A4_tab |>
+  mutate(A4_rpkm = (est_counts * 10^9) / (length * sum(est_counts))) |> 
+  select(target_id, A4_rpkm)
+
+```
+
+### Lag en tabell med RPKM-verdiene for de fire prøvene
+
+```{r}
+RPKM_tab <- full_join(RPKM_tab_A1, RPKM_tab_A2, by = "target_id") |> 
+  full_join(RPKM_tab_A3, by = "target_id") |> 
+  full_join(RPKM_tab_A4, by = "target_id") 
+```
+
+### Lag en tabell med TPM-verdiene for de fire prøvene 
+
+```{r}
+load("C:/Users/anekl/OneDrive - Norwegian University of Life Sciences/BIN210/Uke11_transkriptomikk/data/RNASeq/RNASeq/uke11.RData")
+
+TPM_tab <- data.table |> 
+  mutate(target_id = gene_id, A1_tpm = A1, A2_tpm = A2, A3_tpm = A3, A4_tpm = A4) |>
+  select(c(target_id, A1_tpm, A2_tpm, A3_tpm, A4_tpm)) 
+```
+
+### Join tabellene med TPM- og RPKM-verdier 
+
+```{r}
+full_tab <- full_join(TPM_tab, RPKM_tab, by = "target_id")
+```
+
+### Lag en figur der du plotter TPM-verdi mot RPKM-verdi for hvert gen (som en prikk, geom_point()), og del dette i 4 paneler (facet_wrap()) etter de fire prøvene. 
+
+```{r}
+data_long <- full_tab %>%
+  pivot_longer(cols = -target_id, 
+               names_to = c("sample", "type"), 
+               names_pattern = "(A[1-4])_(tpm|rpkm)", 
+               values_to = "value") |> 
+  pivot_wider(names_from = type, values_from = value) 
+```
+
+```{r}
+ggplot(data = data_long, aes(x = tpm, y = rpkm)) +
+  geom_point(alpha = 0.6) +
+  facet_wrap(~ sample) +
+  theme_minimal() + 
+  labs(x = "TPM", y = "RPKM", title = "TPM vs RPKM for each sample") + 
+  scale_x_continuous(limits = c(0, 10000)) +
+  scale_y_continuous(limits = c(0, 10000)) 
+
+```
+
+In the plot above, we can see that the relationship between TPM and RPKM values is generally linear, which is expected since both metrics are designed to quantify gene expression levels. However, there are some deviations from the linear trend, particularly at higher expression levels. This could be due to differences in the normalization methods used for TPM and RPKM, as well as potential biological variability in gene expression across samples. Overall, the plot suggests a strong correlation between the two metrics, indicating that they provide similar information about gene expression levels. 
+
+At small values of TPM and RPKM, the values are very similar, but as the values increase, the RPKM values tend to be higher than the TPM values. This could be due to the fact that RPKM takes into account the length of the gene, while TPM does not. 
+
+## 3 Differensielt uttrykte gener 
+
+```{r}
+load(url("https://arken.nmbu.no/~larssn/teach/bin210/ovinger/mutantdata.RData"))
+```
+
+### 3.1 Fjern gener uten uttrykk 
+
+**Fjern alle gener som har 0 uttrykk i alle prøver fra uttrykks-matrisen (tpm.mat). Et gen kan godt ha 0 i flere prøver, bare de som har 0 i alle prøver skal fjernes.** 
+
+```{r}
+# Fjern gener med 0 uttrykk i alle prøver 
+tpm.mat <- tpm.mat[,colSums(tpm.mat) > 0]
+```
+
+### 3.2 Hva skiller mutant og WT for kontroll-prøvene?
+
+**Bruk bare data fra kontroll-prøver, og kjør en Wilcoxon-test for hvert gen. Ta vare på p-verdien for hvert gen i en tabell. Beregn så en q-verdi for hver p-verdi, dvs justert p-verdi der du bruker False Discovery Rate framgangsmåten.** 
+
+**Beregn deretter, for hvert gen, en log Fold Change verdi for hvert gen. Finn først gjennomsnittlig uttrykks-verdi for mutant og WT, og deretter ratioen mellom disse (med WT-verdien i nevner). Ta log2() av dette, og lagre i en kolonne kalt log2FC (log Fold Change) i den samme tabellen.** 
+
+**Til slutt, legg inn en kolonne signifikant med verdien TRUE dersom q-verdien er mindre enn 0.05 og FALSE ellers. Legg også inn en kolonne regulert som har tekstene Opp hvis log2FC er større enn 1, Ned hvis den er mindre enn -1 og Uregulert ellers. Rapporter hvor mange gener som får q-verdi under 0.05. Rapporter hvor mange av disse som også har en log2FC som er enten større enn 1 eller mindre enn -1.**
+
+```{r}
+rows.mut <- which(sample.tbl$genotype == "Mutant" & sample.tbl$treatment == "Control")
+rows.wt <- which(sample.tbl$genotype == "WT" & sample.tbl$treatment == "Control")
+
+kontroll.tbl <- gene.tbl |> 
+  filter(gene_id %in% colnames(tpm.mat)) |> 
+  mutate(p_value = -1) |> 
+  mutate(log2FC = 0)
+
+for(i in 1:nrow(kontroll.tbl)) {
+  x <- tpm.mat[rows.mut, i]
+  y <- tpm.mat[rows.wt, i]
+  tst.obj <- wilcox.test(x, y)
+  kontroll.tbl$log2FC[i] <- log2(mean(x)/mean(y))
+  kontroll.tbl$p_value[i] = tst.obj$p.value
+}
+
+kontroll.tbl <- kontroll.tbl |> 
+  mutate(q_value = p.adjust(p_value, method = "fdr")) |> 
+  mutate(signifikant = q_value < 0.05) |> 
+  mutate(regulert = case_when(
+    log2FC < -1 ~ 'Nedregulert',
+    log2FC > 1 ~ 'Oppregulert',
+    .default = "Uregulert"
+  ))
+```
+
+### 3.3 Vulkanplott 
+
+**Lag et vulkan-plott for resultatene over. Marker gener som er signifikant differensielt uttrykte med en egen farge. Marker i tillegg signifikante gener som også har log2FC som er større i absoluttverdi enn 1 med enda en farge slik at disse skiller seg ut fra de som “bare” er signifikante.**  
+
+```{r}
+kontroll.tbl <- kontroll.tbl %>%
+  mutate(color_group = case_when(
+    regulert == 'Oppregulert' & signifikant == TRUE ~ 'Upregulated Significant',   # Both upregulated and significant
+    regulert == 'Nedregulert' & signifikant == TRUE ~ 'Downregulated Significant',  # Both downregulated and significant
+    signifikant == TRUE ~ 'Significant',                                             # Just significant
+    TRUE ~ 'Not Significant'                                                         # Non-significant genes
+  ))
+
+
+ggplot(kontroll.tbl, aes(x = log2FC, y = -log10(q_value))) + 
+  geom_point(aes(color = color_group)) + 
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = -1, linetype = "dashed", color = "red") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") 
+  
+```
+
+### 3.4 Hva skjer under stress? 
+
+**Kjør samme prosedyren som over for mutant mot WT men nå bare for stress-prøvene. Lag tilsvarende vulkan-plott og sammenlign. Blir det forskjeller? Skriv kort hva du ser.**
+
+```{r}
+rows.mut2 <- which(sample.tbl$genotype == "Mutant" & sample.tbl$treatment == "Stress")
+rows.wt2 <- which(sample.tbl$genotype == "WT" & sample.tbl$treatment == "Stress")
+
+kontroll.tbl2 <- gene.tbl |> 
+  filter(gene_id %in% colnames(tpm.mat)) |> 
+  mutate(p_value = -1) |> 
+  mutate(log2FC = 0)
+
+for(i in 1:nrow(kontroll.tbl2)) {
+  x2 <- tpm.mat[rows.mut2, i]
+  y2 <- tpm.mat[rows.wt2, i]
+  tst.obj2 <- wilcox.test(x2, y2)
+  kontroll.tbl2$log2FC[i] <- log2(mean(x2)/mean(y2))
+  kontroll.tbl2$p_value[i] = tst.obj2$p.value
+}
+
+kontroll.tbl2 <- kontroll.tbl2 |> 
+  mutate(q_value = p.adjust(p_value, method = "fdr")) |> 
+  mutate(signifikant = q_value < 0.05) |> 
+  mutate(regulert = case_when(
+    log2FC < -1 ~ 'Nedregulert',
+    log2FC > 1 ~ 'Oppregulert',
+    .default = "Uregulert"
+  ))
+```
+
+```{r}
+kontroll.tbl2 <- kontroll.tbl2 %>%
+  mutate(color_group = case_when(
+    regulert == 'Oppregulert' & signifikant == TRUE ~ 'Upregulated Significant',   # Both upregulated and significant
+    regulert == 'Nedregulert' & signifikant == TRUE ~ 'Downregulated Significant',  # Both downregulated and significant
+    signifikant == TRUE ~ 'Significant',                                             # Just significant
+    TRUE ~ 'Not Significant'                                                         # Non-significant genes
+  ))
+
+
+ggplot(kontroll.tbl2, aes(x = log2FC, y = -log10(q_value))) + 
+  geom_point(aes(color = color_group)) + 
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = -1, linetype = "dashed", color = "red") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") 
+```
+
+Gruppen som er oppregulert og signifikant er mye større i stress-prøvene enn i kontroll-prøvene. Det er også flere gener som er nedregulert og signifikant i stress-prøvene enn i kontroll-prøvene. Dette tyder på at det skjer en større endring i genuttrykket under stress enn i kontroll. 
+
+### 3.5 Anrikning av GO-term 
+
+**Lag en ny kolonne i gen-tabellen som heter GO_term og som har teksten "GO" for de genene der teksten "GO:0005524" forekommer i Attributes-kolonnen og teksten "Ikke-GO"ellers. Hvor mange gener har denne GO-termen?** 
+
+```{r}
+gene.tbl <- gene.tbl |> 
+  mutate(GO_term = ifelse(grepl("GO:0005524", Attributes), "GO", "Ikke-GO"))
+
+cat('Antallet gener med GO-termen:', sum(gene.tbl$GO_term == "GO"))
+```
+
+**Lag så en ny kolonne i gen-tabellen som heter regulert og som har teksten "Opp" for alle gener som var oppregulert i analysen av stress-dataene over, og "Ikke-Opp"for alle andre gener. Hvor mange gener er opp-regulert?** 
+
+```{r}
+gene.tbl <- gene.tbl |> 
+  left_join(kontroll.tbl2 |> 
+              select(gene_id, log2FC), by = "gene_id")
+
+gene.tbl <- gene.tbl |>
+  mutate(regulert = ifelse(log2FC > 1, "Opp", "Ikke-Opp"))
+
+table(gene.tbl$regulert)
+
+```
+
+120 gener er oppregulert i stress-prøvene. 
+
+**Kjør så en Fisher-test på om GO-termen "GO:0005524" er anriket blant de oppregulerte genene. Hva blir utfallet? Kan du si noe mer om hva slags gener som tilhører kategorien "GO:0005524"?** 
+
+```{r}
+cont.table <- table(gene.tbl$GO_term, 
+                    gene.tbl$regulert)
+
+print(cont.table)
+```
+
+```{r}
+tst.obj <- fisher.test(cont.table)
+p_value <- tst.obj$p.value
+odds_ratio <- tst.obj$estimate 
+
+cat('P-verdi:', p_value, '\n') 
+cat('Odds ratio:', odds_ratio, '\n')
+```
+
+Ved 5% signifikansnivå kan vi ikke si at GO-termen er anriket blant de oppregulerte genene. 
+Odds ratio er 0.5, noe som tyder på at det er færre oppregulerte gener i GO-kategorien enn i de andre kategoriene.
+
+Andelen oppregulerte gener i GO = 11/109 = 0.1018 
+Andelen oppregulerte gener i Ikke-GO = 103/1936 = 0.0532 
+Vi har derfor en anrikning av GO-termen i de oppregulerte genene, men den er ikke signifikant. 
+
+## 4 R-lab 
+
+### 4.1 Indekser og indeksvektorer 
+
+```{r}
+# en vektor med 4 tekster
+w <- c("En","vektor","med","tekster")
+
+# en vektor med 5 tall
+v <- 1:5
+```
+
+```{r}
+# kopierer element nummer 3 over til en annen variabel
+o <- w[3]
+
+# kopierer ny verdi inn i element nummer 5
+v[5] <- 2
+```
+
+```{r}
+w[v]
+```
+
+```{r}
+f <- c(1,1,1,1,1,1,1,1,1,1) 
+```
+
+**Hva skjer dersom du kjører w[f]?** 
+
+'En' blir skrevet ut 10 ganger 
+
+```{r}
+w[f]
+```
+
+```{r}
+s <- c(1,2,5,6)
+w[s]
+
+```
+
+**Dersom du prøver å bruke et negativt tall som indeks, så skjer det noe spennende. Prøv og forklar!** 
+
+```{r}
+w[-1]
+```
+
+Indeksering med negative tall, fjerner det elementet som har den indeksen. 
+w[-1] = 'En', denne printes da ikke ut. De resterende elementene printes ut. 
+
+### 4.2 Andre datastrukturer 
+
+### 4.3 Typisk bruk av indeksvektorer
+
+#### 4.3.1 Sortere matrise etter en av kolonnene 
+
+```{r}
+# tallene 1-20 i tilfeldig rekkefølge
+xmpl.mat <- matrix(sample(20), nrow = 5)
+
+# sorterer etter kolonne 1
+idx <- order(xmpl.mat[,1])
+
+# nå blir radene i ny.mat i sortert etter rekkefølgen i kolonne 1
+ny.mat <- xmpl.mat[idx,]
+```
+
+#### 4.3.2 Velge elementer som oppfyller et krav 
+
+```{r, eval = F}
+idx <- which(q.verdi < 0.10)
+```
+
+#### 4.3.3 Regulære uttrykk 
+
+```{r}
+load(url("http://arken.nmbu.no/~larssn/teach/bin210/ovinger/data/radiation_small.RData"))
+```
+
+**Alternativ 1** 
+
+```{r}
+# omvendt søk med regulært uttrykk i kolonnenavn
+idx <- str_which(colnames(X), "2", negate = TRUE)
+X.luket <- X[,idx]
+```
+
+**Alternativ 2** 
+
+```{r}
+# søker med regulært uttrykk i kolonnenavn
+idx <- str_which(colnames(X), "2")
+# men bruker -idx for å pluke alle andre kolonner enn de angitt i idx
+X.luket <- X[,-idx]
+```
+
+### 4.4 Mulig feil ved bruk av indeksvektorer 
+
+To ulike datastrukturer: 
+- En matrise X med en rad for hvert gen 
+- En tabell gentest.tbl med en rad for hver gen 
+
+Vi vil luke i radene til X, basert på hva som står i en kolonne i gentest.tbl ved bruk av indeksvektor. 
+
+Dette fungerer kun dersom radene i X og radene i gentest.tbl har data for de samme genene i samme rekkefølge. 
+
+**Hvordan kan vi kode dette slik at vi er sikre på at det fungerer selv om radene i X ikke er i samme rekkefølge som radene i gentest.tbl? Du trenger bare å skissere løsningen og forklare med ord hvordan du tenker.** 
+
+- Sjekk at radene i X og radene i gentest.tbl har data for de samme genene, og har en felles kolonne som kan brukes til å matche dem. 
+
+- Bruk funksjonen `match` for å lage en indeksvektor som matcher radene i X med radene i gentest.tbl. 
+
+- Denne funksjonen returnerer indekser for radene i gentest.tbl som matcher radene i X (eller omvendt). 
+
+- match(a,b) 
+  - a = radene i X 
+  - b = radene i gentest.tbl 
+  - returnerer indekser for radene i gentest.tbl som matcher radene i X. 
+  
+```{r}
+a <- c(1,2,3,4,5) 
+b <- c(2,4,1,3,5) 
+
+match(a, b)
+
+# hvor i b finner jeg første element i a? 
+# 1 er i b på plass 3 
+```
+
+- Man kan deretter bruke indeksvektoren til å luke i radene i X. 

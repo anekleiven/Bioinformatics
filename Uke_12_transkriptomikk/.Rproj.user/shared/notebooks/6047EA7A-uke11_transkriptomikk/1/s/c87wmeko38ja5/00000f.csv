@@ -1,0 +1,7 @@
+"0","# lag ny kolonne gene_id"
+"0","staphylococcus_haemo_filtered <- staphylococcus_haemo_filtered |> "
+"0","  mutate(gene_id = str_extract(Attributes, ""Name=.+?;"")) |> "
+"0","  mutate(gene_id = str_remove(gene_id, ""Name="")) |> "
+"0","  mutate(gene_id = str_remove(gene_id, "";""))"
+"0",""
+"0","head(staphylococcus_haemo_filtered)"

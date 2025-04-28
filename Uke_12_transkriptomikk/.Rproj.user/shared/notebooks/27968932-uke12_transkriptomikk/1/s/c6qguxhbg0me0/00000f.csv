@@ -1,0 +1,4 @@
+"0","# søker med regulært uttrykk i kolonnenavn"
+"0","idx <- str_which(colnames(X), ""2"")"
+"0","# men bruker -idx for å pluke alle andre kolonner enn de angitt i idx"
+"0","X.luket <- X[,-idx]"

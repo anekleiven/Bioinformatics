@@ -1,0 +1,7 @@
+"0","# lag plot av PCA "
+"0","ggplot(data = tbl, aes(x = PC1, y = PC2)) + "
+"0","  geom_point(aes(color = Treatment), size = 5) + "
+"0","  geom_text(aes(label = Person), vjust = -1, size = 3) +"
+"0","  labs(title = ""PCA av radiation data"", x = ""PC1"", y = ""PC2"") + "
+"0","  theme_minimal() + "
+"0","  coord_fixed()"

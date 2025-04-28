@@ -1,0 +1,5 @@
+"0","# lag tabell med gen og gjennomsnittlig TPM-verdi"
+"0","top10.table <- data.frame(tpm = top10) |> "
+"0","  arrange(desc(tpm))"
+"0",""
+"0","top10.table"

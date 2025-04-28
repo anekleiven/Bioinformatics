@@ -1,0 +1,7 @@
+"0","gene.tbl <- gene.tbl |> "
+"0","  mutate(GO_term = ifelse(grepl(""GO:0005524"", Attributes), ""GO"", ""Ikke-GO""))"
+"0",""
+"0","cat('Antallet gener med GO-termen:', sum(gene.tbl$GO_term == ""GO""))"
+"1","Antallet gener med GO-termen:"
+"1"," "
+"1","120"
