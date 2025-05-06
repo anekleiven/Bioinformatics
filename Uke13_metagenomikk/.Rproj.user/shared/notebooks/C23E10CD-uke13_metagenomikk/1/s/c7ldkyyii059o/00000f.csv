@@ -1,0 +1,3 @@
+"0","bdiv.pcoa <- as.data.frame(bdiv.pcoa$points) |> "
+"0","  rownames_to_column(""run_accession"") |> "
+"0","  full_join(salmon, by = ""run_accession"")"

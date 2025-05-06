@@ -1,0 +1,300 @@
+---
+title: "BIN210 Metagenomikk, uke 13"
+author: "Ane Kleiven"
+date: "2025-05-05"
+output: 
+  html_document:
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F) 
+```
+
+# 1 Last inn R-pakker 
+
+```{r}
+library(tidyverse) 
+library(ggplot2) 
+library(readr) 
+library(Rsearch)
+library(microseq)
+```
+
+# 2 Laksedata 
+
+## 2.1 R-pakken Rsearch
+
+**Vi vil at du nå prøver å installere VSEARCH og Rsearch slik det er forklart på GitHub-siten vi lenket til over her. Skriv kort om hvordan dette gikk, om det var noe problemer eller om du har noen tips til hvordan forklaringene kan forbedres for å gjøre dette enklere for alle brukere.** 
+
+Man må ha phyloseq() installert for å få det til. 
+Ble litt klønete fordi dette ikke var klart. 
+Ellers ok :) 
+
+## 2.2 Rådata 
+
+**Les inn tekst-fila, og lag en liten tabell som viser antall prøver for hvert miljø (environment) og for hvert land (location).** 
+
+```{r}
+salmon <- read_tsv('data/salmon/salmon_samples.tsv') 
+```
+
+```{r}
+salmon_tab <- salmon |>
+  group_by(location, environment) |>
+  summarise(Antall = n())
+```
+
+**Lag to nye kolonner i tabellen, R1_file og R2_file, med de korrekte filnavnene på fastq-filene for hver prøve. HINT: Du må kikke i mappen fastq og i tabellen for å skjønne mønsteret i filenes navn.** 
+
+Disse kolonnene finnes allerede i filen? 
+
+## 2.3 Prosessering av data med `Rsearch`
+
+**Lag ei ny mappe kalt fasta der du skal ende opp med ei fasta-fil for hver prøve.** 
+
+laget i data/salmon/fasta 
+
+**Legg inn følgende kode-skjelett, og fyll inn koden fra oppgaven over samt rediger navn på mapper og objekter hvis nødvendig:** 
+
+```{r, eval = F}
+# Last pakker som trengs
+
+# Les inn salmon_samples.tsv og legg inn to nye kolonner
+
+# Lag liten tabell for å vise antall prøver
+
+# Prosessering av hver prøve
+
+for(i in 1:nrow(salmon)){
+  R1.tbl <- readFastq(file.path("data/salmon", salmon$R1_file[i])) # rediger
+  R2.tbl <- readFastq(file.path("data/salmon", salmon$R2_file[i])) # rediger
+  
+  #gg.obj <- plot_base_quality(R1.tbl, R2.tbl)
+  #print(gg.obj)
+
+# Bruk funksjonen vs_fastx_trim_filt() til å trimme og filtrere reads i hvert fil-par. Legg koden inn i løkka du begynte på over.
+  
+  vs_fastx_trim_filt(R1.tbl, minlen = 50, maxee_rate = 0.01, truncee_rate = 0.035, stripleft = 12)
+  vs_fastx_trim_filt(R2.tbl, minlen = 50, maxee_rate = 0.01, truncee_rate = 0.035, stripleft = 12)
+  
+# Bruk funksjonen vs_fastq_mergepairs() til å lime sammen reads i hvert fil-par. Bruk to R-objekter som input her, dvs R1 og R2 objektene du fikk fra forrige steg. Legg dette inn i løkka fra tidligere.
+  merged_R1_R2 <- vs_fastq_mergepairs(R1.tbl, R2.tbl)
+
+# Bruk funksjonen vs_fastx_uniques() til å finne de unike readene. Bruk et R-objekt som input her, det du fikk fra forrige steg. Bruk opsjonen output_format = "fasta" for å få fasta output. Det er viktig at du her også bruker opsjonen sample og gir til denne teksten som identifiserer den enkelte prøve.
+  
+  unique <- vs_fastx_uniques(merged_R1_R2, output_format = "fasta", sample = str_extract(merged_R1_R2$Header[i], "^[^.]+")) # rediger )
+  
+# Skriv resultatet av dette til en fasta-fil. Denne skal ha prøvens id (run_accession som ‘fornavn’ og legges i mappen fasta som du laget over.
+  output_filename <- paste0('data/salmon/fasta/', salmon$run_accession[i], ".fasta")
+  writeFasta(unique, out.file = output_filename) # rediger
+  
+} 
+
+```
+
+**Skriv en kort forklaring på hva hver av disse opsjonene betyr og hva som gjøres med readene når disse spesifiseres.**
+
+- `minlen = 50`: minimum lengde på readene etter trimming. Readene som er kortere enn dette vil bli fjernet. 
+- `maxee_rate = 0.01`: maks tillatt feilrate for readene. Readene som har høyere feilrate enn dette vil bli fjernet. 
+- `truncee_rate = 0.035`: maks tillatt feilrate for readene etter trimming. Readene som har høyere feilrate enn dette vil bli fjernet.
+- `stripleft = 12`: antall baser som skal fjernes fra venstre side av readene. Dette kan være nyttig for å fjerne lavkvalitetsbaser i starten av readene.
+
+## 2.4 Vi finner OTU-er 
+
+### 2.4.1 Dereplikering av alle reads samlet 
+
+**Bruk igjen vs_fastx_uniques() til å de-replikere alle reads. Bruk opsjonene minuniquesize = 2 og relabel = "OTU". Du skal ikke angi noe sample denne gangen (det er allerede gjort). Skriv kort hva disse opsjonene betyr. Igjen angir du output_format = "fasta.** 
+
+```{r, eval=FALSE}
+filer <- list.files("data/salmon/fasta", full.names = T) # filer vi vil lese inn
+alle.tbl <- lapply(filer, readFasta) |> 
+  bind_rows()
+```
+
+```{r, eval=FALSE}
+unique_2 <- vs_fastx_uniques(alle.tbl, output_format = "fasta", minuniquesize = 2, relabel = 'OTU') 
+```
+
+- `minuniquesize = 2`: min antall reads som må være like for at de skal bli slått sammen til en OTU. 
+- `relabel = 'OTU'`: gir hver OTU et unikt navn. 
+- `output_format = "fasta"`: spesifiserer at output skal være i fasta-format. 
+
+
+### 2.4.2 Clustering
+
+**Bruk fasta-objektet du fikk i forrige steg som input til vs_cluster_size(). Bruk opsjonen id = 0.95, som angir at vi slår sammen sekvenser som er minst 95% identisk like. Kall objektet du får tilbake sequence.tbl. Legg inn en ny kolonne i tabellen som bare heter OTU og som kun inneholder OTU-delen av Header-tekstene (ikke size etc). Rapporter hvor mange OTU’er du endte opp med her.** 
+
+```{r, eval = F}
+sequence.tbl <- vs_cluster_size(unique_2, id = 0.95) |> 
+  mutate(OTU = str_extract(Header, "OTU[0-9]+")) 
+
+cat('Antall OTU-er:', nrow(sequence.tbl), '\n')
+```
+### 2.4.3 Antall reads 
+
+**Til slutt lager du tabellen med antall reads for hver prøve og hver OTU ved å bruke funksjonen vs_usearch_global(). Da søker du med alle reads. NB! Her skal du bruke alle unike reads fra hver prøve, den som ble kalt alle.tbl i koden over. Det er nå informasjonen du la inn som sample = tidligere kommer til bruk. Du søker så mot en ‘database’, og det er rett og slett tabellen sequence.tbl, dvs centroide-sekvensene for hver av OTU’ene.** 
+
+```{r}
+reads_per_prove <- vs_usearch_global(fastx_input = alle.tbl, database = sequence.tbl, id = 0.95, otutabout = TRUE)
+```
+
+### 2.4.4 Lagre filene 
+
+```{r}
+save(salmon, sequence.tbl, reads_per_prove, file = "salmon_processed.RData")
+```
+
+
+# 3 Analyse av lakse-data
+
+## 3.1 Datatransformasjon 
+
+```{r}
+reads_per_prove.mat <- reads_per_prove |> 
+  column_to_rownames("otu_id") |>  # flytter tekst-kolonnen ut
+  as.matrix() |>                    # gjør så om til matrise (bare tall)
+  t()                               # transponerer
+```
+
+**Fjern alle OTU’er som bare er tilstede i 4 eller færre prøver, som tilsvarer under 10% av alle prøver. Fjern disse fra readcount.mat, men også fra tabellen med sekvensene. Rapporter hvor mange OTU’er som nå er igjen..** 
+
+```{r}
+# Finner OTU-er som er tilstede i 4 eller færre prøver
+sum_OTU <- colSums(reads_per_prove.mat > 0)
+
+OTU_filtered <- sum_OTU[sum_OTU > 4] |> 
+  names()
+
+# Fjerner OTU-er fra readcount.mat 
+filtered.mat <- reads_per_prove.mat[, OTU_filtered]
+```
+
+
+**Gjør om til relative mengder reads per prøve** 
+
+```{r}
+abundance.mat <- filtered.mat / rowSums(filtered.mat)
+```
+
+## 3.2 Alfa-diversitet 
+
+**Legg alfa-diversiteten inn som en ny kolonne i tabellen over prøvene. Sørg for at riktig diversitets-verdi havner i riktig rad for alle prøver. Lag så et box-plott som viser alfa-diversitet fordelingen hos vill-laks og oppdretts-laks.** 
+
+```{r}
+library(vegan)
+adiv <- diversity(abundance.mat, index = "shannon", MARGIN = 1)
+
+adiv.table <- data.frame(alfadiv = adiv) |> 
+  rownames_to_column("run_accession") 
+
+salmon <- salmon |> 
+  full_join(adiv.table, by = "run_accession")
+```
+
+```{r}
+ggplot(salmon, aes(x = environment, y = alfadiv)) +
+  geom_boxplot() +
+  theme_bw() +
+  labs(x = "Environment", y = "Alfa-diversitet (Shannon)", title = "Alfa-diversitet hos vill-laks og oppdrettslaks")
+```
+
+## 3.3 Beta-diversitet
+
+```{r}
+bdiv <- vegdist(abundance.mat, method = "bray")
+```
+
+**Ta utgangspunkt i beta-diversitetene beregnet over, og lag en ordinasjon av dette med Principal Coordinate Analysis. Re-konstruer 2 dimensjoner, og vis prøvene som punkter i dette koordinat-systemet. Fargelegg punktene etter vill- eller oppfretts-laks. Viser tarmfloraen noe tydelig skille mellom vill og tam laks?.** 
+
+```{r}
+bdiv.pcoa <- cmdscale(bdiv, k = 2, eig = TRUE)
+```
+
+```{r}
+bdiv.pcoa <- as.data.frame(bdiv.pcoa$points) |> 
+  rownames_to_column("run_accession") |> 
+  full_join(salmon, by = "run_accession")
+```
+
+```{r}
+ggplot(bdiv.pcoa, aes(x = V1, y = V2, color = environment)) +
+  geom_point(size = 3) +
+  theme_bw() +
+  labs(x = "PCoA1", y = "PCoA2", title = "Beta-diversitet hos vill-laks og oppdrettslaks")
+```
+
+Prøvene fra villaks og oppdrettslaks er separert i ordinasjonen, og det er tydelig at det er forskjeller i tarmfloraen mellom disse to gruppene. 
+
+## 3.4 Testing for differensiell mengde 
+
+**Skriv ned hva slags hypoteser som testes (H0 og H1) for hver OTU. Bruk koden fra uke 12 for å kjøre Wilcoxon-testen for hver OTU. Bruk også eksakt samme måte for å korrigere for multippel testing. Igjen kan vi også beregne en log2FC verdi for hver OTU, og ta vare på denne sammen med p-verdi og q-verdi for hver OTU, i en tabell. Raporter antall OTU’er som har en differensiell megde mellom vill-lka sog oppdretts-laks. Har du noen tolkning av resultatet?** 
+
+Hypotesene: 
+
+- H0: Det er ingen forskjell i mengde av OTU mellom vill-laks og oppdrettslaks. 
+- H1: Det er en forskjell i mengde av OTU mellom vill-laks og oppdrettslaks. 
+
+```{r}
+salmon.filtered <- salmon[match(rownames(abundance.mat), salmon$run_accession), ]
+
+rows.farm <- which(salmon.filtered$environment == 'Farm')
+rows.wild <- which(salmon.filtered$environment == "Wild")
+
+# Resultatlister
+p_values <- numeric(ncol(abundance.mat))
+log2FCs <- numeric(ncol(abundance.mat))
+
+# Wilcoxon-test per OTU
+for (i in seq_len(ncol(abundance.mat))) {
+  x <- abundance.mat[rows.farm, i]
+  y <- abundance.mat[rows.wild, i]
+  
+  tst <- wilcox.test(x, y)
+  log2FCs[i] <- log2(mean(x) / mean(y)) 
+  p_values[i] <- tst$p.value
+}
+
+# Korriger for FDR
+q_values <- p.adjust(p_values, method = "fdr")
+
+# Resultattabell
+OTU_results <- tibble(
+  OTU = colnames(abundance.mat),
+  log2FC = log2FCs,
+  p_value = p_values,
+  q_value = q_values,
+  signifikant = q_value < 0.05,
+  regulert = case_when(
+    log2FC < -1 ~ "Nedregulert",
+    log2FC > 1 ~ "Oppregulert",
+    TRUE ~ "Uregulert"
+  )
+)
+
+# Antall signifikante OTUer
+antall_signifikante <- sum(OTU_results$signifikant)
+cat("Antall signifikante OTUer:", antall_signifikante, "\n")
+
+```
+
+```{r}
+nedregulert <- OTU_results |> 
+  filter(signifikant, regulert == "Nedregulert")
+```
+
+**Visualiser med vulkanplott** 
+
+```{r}
+ggplot(OTU_results, aes(x = log2FC, y = -log10(q_value), color = signifikant)) +
+  geom_point() +
+  scale_color_manual(values = c("red", "black")) +
+  theme_bw() +
+  labs(x = "log2FC", y = "-log10(q-value)", title = "Differensiell mengde av OTU mellom vill-laks og oppdrettslaks")
+```
+

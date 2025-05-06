@@ -1,0 +1,2 @@
+"0","oppregulerte <- OTU_results |> "
+"0","  filter(signifikant, regulert == ""Oppregulert"")"

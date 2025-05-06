@@ -1,0 +1,4 @@
+"0","ggplot(bdiv.pcoa, aes(x = V1, y = V2, color = environment)) +"
+"0","  geom_point(size = 3) +"
+"0","  theme_bw() +"
+"0","  labs(x = ""PCoA1"", y = ""PCoA2"", title = ""Beta-diversitet hos vill-laks og oppdrettslaks"")"

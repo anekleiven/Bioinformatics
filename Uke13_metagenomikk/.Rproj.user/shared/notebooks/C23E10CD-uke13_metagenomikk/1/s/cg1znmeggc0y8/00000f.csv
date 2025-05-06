@@ -1,0 +1,3 @@
+"0","filer <- list.files(""data/salmon/fasta"", full.names = T) # filer vi vil lese inn"
+"0","alle.tbl <- lapply(filer, readFasta) |> "
+"0","  bind_rows()"

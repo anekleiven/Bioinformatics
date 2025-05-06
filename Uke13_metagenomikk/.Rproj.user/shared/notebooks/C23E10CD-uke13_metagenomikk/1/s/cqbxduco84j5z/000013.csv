@@ -1,0 +1,4 @@
+"0","ggplot(salmon, aes(x = environment, y = alfadiv)) +"
+"0","  geom_boxplot() +"
+"0","  theme_bw() +"
+"0","  labs(x = ""Environment"", y = ""Alfa-diversitet (Shannon)"", title = ""Alfa-diversitet hos vill-laks og oppdrettslaks"")"

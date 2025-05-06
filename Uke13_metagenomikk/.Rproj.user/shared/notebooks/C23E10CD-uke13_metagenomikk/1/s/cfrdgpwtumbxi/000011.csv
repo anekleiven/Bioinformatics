@@ -1,0 +1,1 @@
+"0","unique_2 <- vs_fastx_uniques(alle.tbl, output_format = ""fasta"", minuniquesize = 2, relabel = 'OTU') "

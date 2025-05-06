@@ -1,0 +1,1 @@
+"0","abundance.mat <- filtered.mat / rowSums(filtered.mat)"

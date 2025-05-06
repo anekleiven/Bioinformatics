@@ -1,0 +1,1 @@
+"0","reads_per_prove <- vs_usearch_global(fastx_input = alle.tbl, database = sequence.tbl, id = 0.95, otutabout = TRUE)"

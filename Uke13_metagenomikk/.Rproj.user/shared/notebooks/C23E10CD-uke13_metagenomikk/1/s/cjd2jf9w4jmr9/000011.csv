@@ -1,0 +1,4 @@
+"0","reads_per_prove.mat <- reads_per_prove |> "
+"0","  column_to_rownames(""otu_id"") |>  # flytter tekst-kolonnen ut"
+"0","  as.matrix() |>                    # gjør så om til matrise (bare tall)"
+"0","  t()                               # transponerer"

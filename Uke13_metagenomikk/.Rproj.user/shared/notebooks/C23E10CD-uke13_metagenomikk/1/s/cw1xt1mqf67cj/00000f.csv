@@ -1,0 +1,8 @@
+"0","library(vegan)"
+"0","adiv <- diversity(abundance.mat, index = ""shannon"", MARGIN = 1)"
+"0",""
+"0","adiv.table <- data.frame(alfadiv = adiv) |> "
+"0","  rownames_to_column(""run_accession"") "
+"0",""
+"0","salmon2 <- salmon |> "
+"0","  full_join(adiv.table, by = ""run_accession"")"

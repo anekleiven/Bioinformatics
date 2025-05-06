@@ -1,0 +1,3 @@
+"0","salmon_tab <- salmon |>"
+"0","  group_by(location, environment) |>"
+"0","  summarise(Antall = n())"

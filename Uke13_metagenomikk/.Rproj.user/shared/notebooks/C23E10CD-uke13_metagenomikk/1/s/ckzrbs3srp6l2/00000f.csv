@@ -1,0 +1,1 @@
+"0","bdiv <- vegdist(abundance.mat, method = ""bray"")"

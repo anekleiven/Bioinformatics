@@ -1,0 +1,5 @@
+"0","ggplot(OTU_results, aes(x = log2FC, y = -log10(q_value), color = signifikant)) +"
+"0","  geom_point() +"
+"0","  scale_color_manual(values = c(""red"", ""black"")) +"
+"0","  theme_bw() +"
+"0","  labs(x = ""log2FC"", y = ""-log10(q-value)"", title = ""Differensiell mengde av OTU mellom vill-laks og oppdrettslaks"")"

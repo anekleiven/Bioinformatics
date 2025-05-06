@@ -1,0 +1,8 @@
+"0","# Finner OTU-er som er tilstede i 4 eller færre prøver"
+"0","sum_OTU <- colSums(reads_per_prove.mat > 0)"
+"0",""
+"0","OTU_filtered <- sum_OTU[sum_OTU > 4] |> "
+"0","  names()"
+"0",""
+"0","# Fjerner OTU-er fra readcount.mat "
+"0","filtered.mat <- reads_per_prove.mat[, OTU_filtered]"

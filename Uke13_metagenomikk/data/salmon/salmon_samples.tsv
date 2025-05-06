@@ -1,0 +1,46 @@
+run_accession	sample_accession	location	environment	R1_file	R2_file
+ERR13822986	SAMEA116140076	Ireland	Farm	fastq/ERR13822986_1.fastq.gz	fastq/ERR13822986_2.fastq.gz
+ERR13822988	SAMEA116140078	Ireland	Farm	fastq/ERR13822988_1.fastq.gz	fastq/ERR13822988_2.fastq.gz
+ERR13823553	SAMEA116141558	United Kingdom	Farm	fastq/ERR13823553_1.fastq.gz	fastq/ERR13823553_2.fastq.gz
+ERR13823554	SAMEA116141559	United Kingdom	Farm	fastq/ERR13823554_1.fastq.gz	fastq/ERR13823554_2.fastq.gz
+ERR13823555	SAMEA116141560	United Kingdom	Farm	fastq/ERR13823555_1.fastq.gz	fastq/ERR13823555_2.fastq.gz
+ERR13823556	SAMEA116141561	United Kingdom	Farm	fastq/ERR13823556_1.fastq.gz	fastq/ERR13823556_2.fastq.gz
+ERR13824162	SAMEA116141656	United Kingdom	Wild	fastq/ERR13824162_1.fastq.gz	fastq/ERR13824162_2.fastq.gz
+ERR13824164	SAMEA116141658	United Kingdom	Wild	fastq/ERR13824164_1.fastq.gz	fastq/ERR13824164_2.fastq.gz
+ERR13824168	SAMEA116141662	United Kingdom	Wild	fastq/ERR13824168_1.fastq.gz	fastq/ERR13824168_2.fastq.gz
+ERR13824362	SAMEA116141664	United Kingdom	Wild	fastq/ERR13824362_1.fastq.gz	fastq/ERR13824362_2.fastq.gz
+ERR13824365	SAMEA116141667	United Kingdom	Wild	fastq/ERR13824365_1.fastq.gz	fastq/ERR13824365_2.fastq.gz
+ERR13824367	SAMEA116141669	United Kingdom	Wild	fastq/ERR13824367_1.fastq.gz	fastq/ERR13824367_2.fastq.gz
+ERR13824368	SAMEA116141670	United Kingdom	Wild	fastq/ERR13824368_1.fastq.gz	fastq/ERR13824368_2.fastq.gz
+ERR13824371	SAMEA116141673	United Kingdom	Wild	fastq/ERR13824371_1.fastq.gz	fastq/ERR13824371_2.fastq.gz
+ERR13824636	SAMEA116140688	Norway	Farm	fastq/ERR13824636_1.fastq.gz	fastq/ERR13824636_2.fastq.gz
+ERR13824661	SAMEA116140694	Norway	Farm	fastq/ERR13824661_1.fastq.gz	fastq/ERR13824661_2.fastq.gz
+ERR13824726	SAMEA116140709	Norway	Farm	fastq/ERR13824726_1.fastq.gz	fastq/ERR13824726_2.fastq.gz
+ERR13822981	SAMEA116140071	Ireland	Farm	fastq/ERR13822981_1.fastq.gz	fastq/ERR13822981_2.fastq.gz
+ERR13822982	SAMEA116140072	Ireland	Farm	fastq/ERR13822982_1.fastq.gz	fastq/ERR13822982_2.fastq.gz
+ERR13822984	SAMEA116140074	Ireland	Farm	fastq/ERR13822984_1.fastq.gz	fastq/ERR13822984_2.fastq.gz
+ERR13822987	SAMEA116140077	Ireland	Farm	fastq/ERR13822987_1.fastq.gz	fastq/ERR13822987_2.fastq.gz
+ERR13823557	SAMEA116141562	United Kingdom	Farm	fastq/ERR13823557_1.fastq.gz	fastq/ERR13823557_2.fastq.gz
+ERR13823559	SAMEA116141564	United Kingdom	Farm	fastq/ERR13823559_1.fastq.gz	fastq/ERR13823559_2.fastq.gz
+ERR13824163	SAMEA116141657	United Kingdom	Wild	fastq/ERR13824163_1.fastq.gz	fastq/ERR13824163_2.fastq.gz
+ERR13824363	SAMEA116141665	United Kingdom	Wild	fastq/ERR13824363_1.fastq.gz	fastq/ERR13824363_2.fastq.gz
+ERR13824364	SAMEA116141666	United Kingdom	Wild	fastq/ERR13824364_1.fastq.gz	fastq/ERR13824364_2.fastq.gz
+ERR13824369	SAMEA116141671	United Kingdom	Wild	fastq/ERR13824369_1.fastq.gz	fastq/ERR13824369_2.fastq.gz
+ERR13824370	SAMEA116141672	United Kingdom	Wild	fastq/ERR13824370_1.fastq.gz	fastq/ERR13824370_2.fastq.gz
+ERR13824637	SAMEA116140689	Norway	Farm	fastq/ERR13824637_1.fastq.gz	fastq/ERR13824637_2.fastq.gz
+ERR13824649	SAMEA116140691	Norway	Farm	fastq/ERR13824649_1.fastq.gz	fastq/ERR13824649_2.fastq.gz
+ERR13824662	SAMEA116140695	Norway	Farm	fastq/ERR13824662_1.fastq.gz	fastq/ERR13824662_2.fastq.gz
+ERR13822983	SAMEA116140073	Ireland	Farm	fastq/ERR13822983_1.fastq.gz	fastq/ERR13822983_2.fastq.gz
+ERR13822985	SAMEA116140075	Ireland	Farm	fastq/ERR13822985_1.fastq.gz	fastq/ERR13822985_2.fastq.gz
+ERR13823558	SAMEA116141563	United Kingdom	Farm	fastq/ERR13823558_1.fastq.gz	fastq/ERR13823558_2.fastq.gz
+ERR13823561	SAMEA116141566	United Kingdom	Farm	fastq/ERR13823561_1.fastq.gz	fastq/ERR13823561_2.fastq.gz
+ERR13823562	SAMEA116141567	United Kingdom	Farm	fastq/ERR13823562_1.fastq.gz	fastq/ERR13823562_2.fastq.gz
+ERR13824160	SAMEA116141654	United Kingdom	Wild	fastq/ERR13824160_1.fastq.gz	fastq/ERR13824160_2.fastq.gz
+ERR13824161	SAMEA116141655	United Kingdom	Wild	fastq/ERR13824161_1.fastq.gz	fastq/ERR13824161_2.fastq.gz
+ERR13824165	SAMEA116141659	United Kingdom	Wild	fastq/ERR13824165_1.fastq.gz	fastq/ERR13824165_2.fastq.gz
+ERR13824166	SAMEA116141660	United Kingdom	Wild	fastq/ERR13824166_1.fastq.gz	fastq/ERR13824166_2.fastq.gz
+ERR13824167	SAMEA116141661	United Kingdom	Wild	fastq/ERR13824167_1.fastq.gz	fastq/ERR13824167_2.fastq.gz
+ERR13824169	SAMEA116141663	United Kingdom	Wild	fastq/ERR13824169_1.fastq.gz	fastq/ERR13824169_2.fastq.gz
+ERR13824366	SAMEA116141668	United Kingdom	Wild	fastq/ERR13824366_1.fastq.gz	fastq/ERR13824366_2.fastq.gz
+ERR13824694	SAMEA116140702	Norway	Farm	fastq/ERR13824694_1.fastq.gz	fastq/ERR13824694_2.fastq.gz
+ERR13824695	SAMEA116140703	Norway	Farm	fastq/ERR13824695_1.fastq.gz	fastq/ERR13824695_2.fastq.gz

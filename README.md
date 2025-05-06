@@ -56,6 +56,10 @@ This repository contains coursework for the BIN210 bioinformatics course at NMBU
   - `uke12_transkriptomikk.Rmd`: R markdown file for week 12 
   - `data/`folder: supporting files for week 12
 
+  - **Uke13_metagenomikk/**
+  - `Uke13_metagenomikk.Rmd`: R markdown file for week 13 
+  - `data/`folder: supporting files for week 13
+
 ## 🛠️ How to Use
 
 1. Navigate to the folder for the specific week you are interested in.
